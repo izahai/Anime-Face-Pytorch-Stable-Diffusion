@@ -13,6 +13,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/vae_config.json")
     args = parser.parse_args()
+    
+    cfg = load_config(args.config)
 
     download_anime_faces()
 
@@ -21,6 +23,7 @@ def main():
         metadata_path=cfg["metadata_path"],
         image_size=cfg["image_size"]
     )
+
     total = len(dataset)
     val_size = int(total * 0.1)
     train_size = total - val_size
@@ -36,14 +39,14 @@ def main():
     val_loader = DataLoader(
         val_dataset,
         batch_size=cfg["batch_size"],
-        shuffle=True,
+        shuffle=False,
         num_workers=cfg["num_workers"]
     )
     
-    cfg = load_config(args.config, dataloader=train_loader)
     trainer = VAETrainer(
         cfg, train_loader, val_loader
     )
+
     trainer.train()
 
 if __name__ == "__main__":
