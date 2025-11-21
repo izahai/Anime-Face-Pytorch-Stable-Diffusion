@@ -1,0 +1,33 @@
+VAE
+1. Input (3x64x64)
+2. Conv → downsample (stride=2)
+3. Residual block
+4. Conv → downsample (stride=2)
+5. Residual block
+6. Conv → downsample (stride=2)
+7. Residual block
+8. Flatten
+9. Dense layers → output:
+    μ (mean)
+    logσ² (log variance)
+
+Use GroupNorm or LayerNorm in residual blocks
+Activation: SiLU
+Output latent mean + logvar
+
+Decoder
+1. Linear → reshape to (C, 8, 8)
+2. Residual block
+3. Upsample (nearest or bilinear)
+4. Residual block
+5. Upsample
+6. Residual block
+7. Upsample
+8. Final Conv → output (3×64×64)
+9. Tanh activation to get output in [-1,1]
+
+Loss
+Reconstruction Loss: L1
+KL Divergence Loss: KL( N(μ, σ²) || N(0,1) )
+Final Loss: Loss = L1(image_recon, image) + β * KL
+    β = 1e-3
