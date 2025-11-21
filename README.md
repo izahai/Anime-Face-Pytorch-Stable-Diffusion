@@ -1,5 +1,5 @@
 # Anime-Face-Pytorch-Stable-Diffusion
-This project builds a mini Stable Diffusion pipeline with pytorch, starting with training a Variational Autoencoder (VAE) on a 64x64 anime face dataset.
+This project builds a **mini Stable Diffusion pipeline using Pytorch**, starting with training a Variational Autoencoder (VAE) on a 64x64 anime face dataset.
 
 This repository is designed for **learning**, **research**, and **fun**.
 
