@@ -1,3 +1,6 @@
-images/*
 .DS_Store
 todo.txt
+/data/images
+*.jsonl
+*.pyc
+utils/__pycache__
