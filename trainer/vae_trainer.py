@@ -1,36 +1,18 @@
 import os
 import torch
-from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from tqdm import tqdm
 
 from losses.vae_loss import vae_loss
 from models.vae import AutoEncoder
-from dataset.anime_face_ds import AnimeFolderDataset
 
 class VAETrainer:
-    def __init__(self, cfg):
+    def __init__(self, cfg, dataloader, model=None):
         self.cfg = cfg
-
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        os.makedirs(cfg["out_dir"], exist_ok=True)
-        os.makedirs(f'{cfg["out_dir"]}/samples', exist_ok=True)
-        os.makedirs(f'{cfg["out_dir"]}/checkpoints', exist_ok=True)
-
-        self.dataset = AnimeFolderDataset(
-            folder=cfg["image_folder"],
-            metadata_path=cfg("metadata_path"),
-            image_size=cfg["image_size"],
-        )
-        self.dataloader = DataLoader(
-            self.dataset,
-            batch_size=cfg["batch_size"],
-            shuffle=True,
-            num_workers=cfg.get("num_workers", 4)
-        )
-
-        self.model = AutoEncoder(
+        self.dataloader = dataloader
+        self.model = model or AutoEncoder(
             in_ch=3,
             base_ch=cfg["base_ch"],
             z_ch=cfg["z_ch"]
@@ -41,7 +23,8 @@ class VAETrainer:
             lr=cfg["learning_rate"]
         )
 
-        self.step = 0
+        self.epoch = 0
+        self.global_step = 0
 
     def save_reconstruction(self, x):
         self.model.eval()
@@ -53,55 +36,67 @@ class VAETrainer:
         recon_vis = (recon + 1) * 0.5
 
         grid = torch.cat([x_vis, recon_vis], dim=0)
-        save_path = f'{self.cfg["out_dir"]}/samples/recon_step_{self.step}.png'
+        save_path = f'{self.cfg["out_dir"]}/samples/recon_epoch_{self.epoch}.png'
         save_image(grid, save_path, nrow=x.shape[0])
 
         print(f"[VAE] Saved reconstruction: {save_path}")
         self.model.train()
 
     def save_checkpoint(self):
-        ckpt_path = f'{self.cfg["out_dir"]}/checkpoints/vae_step_{self.step}.pt'
-        torch.save(self.model.state_dict(), ckpt_path)
+        ckpt_path = f'{self.cfg["out_dir"]}/checkpoints/vae_epoch_{self.epoch}.pt'
+        torch.save({
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "epoch": self.epoch,
+            "global_step": self.global_step
+        }, ckpt_path)
         print(f"[VAE] Saved checkpoint: {ckpt_path}")
 
-    def train(self):
-        dataloader_iter = iter(self.dataloader)
 
-        pbar = tqdm(range(self.cfg["num_steps"]))
-        for _ in pbar:
-            try:
-                x = next(dataloader_iter)
-            except StopIteration:
-                dataloader_iter = iter(self.dataloader)
-                x = next(dataloader_iter)
+    def load_checkpoint(self, ckpt_path):
+        print(f"[VAE] Loading checkpoint: {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location=self.device)
+        self.model.load_state_dict(ckpt["model"])
+        self.optimizer.load_state_dict(ckpt["optimizer"])
+        self.epoch = ckpt["epoch"]
+        self.global_step = ckpt["global_step"]
+        print(f"[VAE] Resumed from epoch {self.epoch}, step {self.global_step}")
 
-            x = x.to(self.device)
 
-            # Forward
-            recon, mu, logvar = self.model(x)
+    def train(self, resume_path=None):
+        # -------- Resume if provided --------
+        if resume_path is not None and os.path.exists(resume_path):
+            self.load_checkpoint(resume_path)
 
-            # Loss
-            loss, recon_loss, kl_loss = vae_loss(
-                recon, x, mu, logvar, beta=self.cfg["beta"]
-            )
+        num_epochs = self.cfg["num_epochs"]
 
-            # Backward
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+        for ep in range(self.epoch, num_epochs):
+            self.epoch = ep
+            pbar = tqdm(self.dataloader, desc=f"Epoch {ep}")
 
-            self.step += 1
+            for x in pbar:
+                x = x.to(self.device)
 
-            pbar.set_description(
-                f"step {self.step} | loss {loss:.4f} | recon {recon_loss:.4f} | KL {kl_loss:.4f}"
-            )
+                recon, mu, logvar = self.model(x)
+                loss, recon_loss, kl_loss = vae_loss(recon, x, mu, logvar, beta=self.cfg["beta"])
 
-            # Save sample reconstruction
-            if self.step % self.cfg["log_every"] == 0:
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+                self.global_step += 1
+
+                pbar.set_postfix({
+                    "loss": f"{loss:.4f}",
+                    "recon": f"{recon_loss:.4f}",
+                    "kl": f"{kl_loss:.4f}"
+                })
+
+            # End of epoch
+            if (ep + 1) % self.cfg["log_every"] == 0:
                 self.save_reconstruction(x[:4])
 
-            # Save checkpoint
-            if self.step % self.cfg["save_every"] == 0:
+            if (ep + 1) % self.cfg["save_every"] == 0:
                 self.save_checkpoint()
 
-        print("[VAE] Training complete!") 
+        print("[VAE] Training complete!")

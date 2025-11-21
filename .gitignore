@@ -6,3 +6,5 @@ todo.txt
 utils/__pycache__
 *.pt
 *.png
+.env
+/ngynthhai/xet
