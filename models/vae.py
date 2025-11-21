@@ -119,12 +119,16 @@ class AutoEncoder(nn.Module):
         return mu, logvar
 
     def reparameterize(self, mu, logvar):
-        # get var
-        # get epsilon from N(0,1)
-        # return mu + epsilon*var
         std = torch.exp(0.5*logvar)
-        eps = torch.rand_like(std) # N(0,var)
+        # eps ~ N(0,1), std arg just for the shape not value
+        eps = torch.randn_like(std) 
         return mu + eps*std
 
-    def decode(self, x):
-        pass
+    def decode(self, z):
+        return self.decoder(z)
+    
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        recon = self.decode(z)
+        return recon, mu, logvar
