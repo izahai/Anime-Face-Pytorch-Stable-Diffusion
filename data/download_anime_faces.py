@@ -6,16 +6,24 @@ import kagglehub
 from data.create_metadata import create_metadata_jsonl
 
 def download_anime_faces(out_dir="data", min_size=64):
-    """
-    Download & prepare the anime face dataset from kaggle automatically.
-    Creates:
-        data/images/
-        data/metadata.jsonl
-    """
+    image_dir = os.path.join(out_dir, "images")
+    meta_path = os.path.join(out_dir, "metadata.jsonl")
 
     os.makedirs(out_dir, exist_ok=True)
 
-    print("Downloading anime face dataset from KaggleHub...")
+    # ------------------------------------------------------
+    # 1. Check if dataset already exists -> SKIP DOWNLOAD
+    # ------------------------------------------------------
+    if os.path.exists(image_dir) and len(os.listdir(image_dir)) > 0:
+        print("Dataset already exists. Skipping download.")
+        print("image_dir =", image_dir)
+        print("metadata_path =", meta_path)
+        return image_dir, meta_path
+
+    # ------------------------------------------------------
+    # 2. Download dataset via KaggleHub
+    # ------------------------------------------------------
+    print("▼ Downloading anime face dataset from KaggleHub...")
     dataset_path = kagglehub.dataset_download("splcher/animefacedataset")
     print("Downloaded dataset to:", dataset_path)
 
@@ -32,18 +40,16 @@ def download_anime_faces(out_dir="data", min_size=64):
 
     print("Found ZIP:", zip_path)
 
-    image_dir = os.path.join(out_dir, "images")
+    # Extract
     os.makedirs(image_dir, exist_ok=True)
-
     print("Extracting ZIP...")
+
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(image_dir)
 
     print("Extracted files to:", image_dir)
 
     # Create metadata.jsonl
-    meta_path = os.path.join(out_dir, "metadata.jsonl")
-
     create_metadata_jsonl(
         image_dir=image_dir,
         output_jsonl=meta_path,
