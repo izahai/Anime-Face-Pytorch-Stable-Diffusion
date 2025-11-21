@@ -11,6 +11,9 @@ class VAETrainer:
         self.cfg = cfg
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
+        os.makedirs(os.path.join(cfg["out_dir"], "samples"), exist_ok=True)
+        os.makedirs(os.path.join(cfg["out_dir"], "checkpoints"), exist_ok=True)
+
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.model = model or AutoEncoder(
