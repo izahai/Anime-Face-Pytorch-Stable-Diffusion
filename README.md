@@ -25,11 +25,18 @@ data/images/
 ```
 
 ### 3. Train the VAE
-Run training:
+#### Train on Google Colab (on T4 GPU)
+Open and run the notebook:
+
+```
+notebook/train_vae.ipynb
+````
+
+#### Train locally
 
 ```bash
 bash scripts/train_vae.sh
-```
+````
 
 All outputs are saved to:
 
@@ -38,6 +45,8 @@ outputs/vae/
 ├── samples/        # reconstruction preview images
 └── checkpoints/    # epoch + best model weights
 ```
+
+You can modify the training hyperparameters in the file `configs/vae_config.json`.
 
 ### 4. Inference VAE
 Run:
