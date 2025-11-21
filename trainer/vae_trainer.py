@@ -64,4 +64,44 @@ class VAETrainer:
         torch.save(self.model.state_dict(), ckpt_path)
         print(f"[VAE] Saved checkpoint: {ckpt_path}")
 
-    
+    def train(self):
+        dataloader_iter = iter(self.dataloader)
+
+        pbar = tqdm(range(self.cfg["num_steps"]))
+        for _ in pbar:
+            try:
+                x = next(dataloader_iter)
+            except StopIteration:
+                dataloader_iter = iter(self.dataloader)
+                x = next(dataloader_iter)
+
+            x = x.to(self.device)
+
+            # Forward
+            recon, mu, logvar = self.model(x)
+
+            # Loss
+            loss, recon_loss, kl_loss = vae_loss(
+                recon, x, mu, logvar, beta=self.cfg["beta"]
+            )
+
+            # Backward
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            self.step += 1
+
+            pbar.set_description(
+                f"step {self.step} | loss {loss:.4f} | recon {recon_loss:.4f} | KL {kl_loss:.4f}"
+            )
+
+            # Save sample reconstruction
+            if self.step % self.cfg["log_every"] == 0:
+                self.save_reconstruction(x[:4])
+
+            # Save checkpoint
+            if self.step % self.cfg["save_every"] == 0:
+                self.save_checkpoint()
+
+        print("[VAE] Training complete!") 

@@ -35,7 +35,7 @@ class AnimeFolderDataset(Dataset):
         # Prebuild transforms
         self.transform = T.Compose([
             T.Resize((image_size, image_size)),
-            T.ToTensor(),
+            T.ToTensor(), # [0,1]
             T.Normalize([0.5]*3, [0.5]*3)   # [-1,1]
         ])
 
