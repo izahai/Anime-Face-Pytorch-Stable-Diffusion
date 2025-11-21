@@ -13,7 +13,7 @@ def download_anime_faces(out_dir="data", min_size=64):
     os.makedirs(out_dir, exist_ok=True)
 
     # ------------------------------------------------------
-    # 1. Check if dataset already exists -> SKIP DOWNLOAD
+    # 1. Skip if already downloaded
     # ------------------------------------------------------
     if os.path.exists(image_dir) and len(os.listdir(image_dir)) > 0:
         print("Dataset already exists. Skipping download.")
@@ -22,51 +22,49 @@ def download_anime_faces(out_dir="data", min_size=64):
         return image_dir, meta_path
 
     # ------------------------------------------------------
-    # 2. Download dataset via KaggleHub
+    # 2. Check Colab's auto-mounted Kaggle datasets
     # ------------------------------------------------------
-    print("Downloading anime face dataset from KaggleHub...")
-    dataset_path = kagglehub.dataset_download("splcher/animefacedataset")
-    print("Downloaded dataset to:", dataset_path)
+    colab_path = "/kaggle/input/animefacedataset"
+    if os.path.exists(colab_path):
+        print("Found dataset in Colab at:", colab_path)
+        src_files = glob(os.path.join(colab_path, "*"))
 
-    # dataset_path is a folder like:
-    # /root/.cache/kagglehub/datasets/splcher/animefacedataset/versions/3
+        os.makedirs(image_dir, exist_ok=True)
+        count = 0
+        for src in src_files:
+            if src.lower().endswith((".jpg", ".png")):
+                dst = os.path.join(image_dir, f"{count:06d}.jpg")
+                shutil.copy2(src, dst)
+                count += 1
 
-    os.makedirs(image_dir, exist_ok=True)
-
-    # ------------------------------------------------------
-    # 3. Find images directly (NO ZIP)
-    # ------------------------------------------------------
-    jpgs = glob(os.path.join(dataset_path, "*.jpg"))
-    pngs = glob(os.path.join(dataset_path, "*.png"))
-
-    if len(jpgs) + len(pngs) > 0:
-        print(f"Found {len(jpgs) + len(pngs)} extracted images. Copying...")
-
-        for idx, src in enumerate(jpgs + pngs):
-            ext = os.path.splitext(src)[1].lower()
-            dst = os.path.join(image_dir, f"{idx:04d}{ext}")
-            shutil.copy2(src, dst)
+        print(f"Copied {count} images from /kaggle/input/animefacedataset")
     else:
         # ------------------------------------------------------
-        # 4. Otherwise try to find a ZIP inside KaggleHub cache
+        # 3. Fallback to KaggleHub
         # ------------------------------------------------------
-        zip_path = None
-        for root, dirs, files in os.walk(os.path.dirname(dataset_path)):
-            for f in files:
-                if f.endswith(".zip"):
-                    zip_path = os.path.join(root, f)
-                    break
+        print("Downloading anime face dataset from KaggleHub...")
+        dataset_path = kagglehub.dataset_download("splcher/animefacedataset")
+        print("Downloaded dataset to:", dataset_path)
 
-        if zip_path is None:
-            raise FileNotFoundError("No images or ZIP found in KaggleHub cache!")
+        os.makedirs(image_dir, exist_ok=True)
 
-        print("Found ZIP:", zip_path)
-        print("Extracting ZIP...")
-        with zipfile.ZipFile(zip_path, "r") as z:
-            z.extractall(image_dir)
+        # Find images
+        files = glob(os.path.join(dataset_path, "*"))
+        images = [f for f in files if f.lower().endswith((".jpg", ".png"))]
+
+        if len(images) == 0:
+            raise FileNotFoundError("No images found in KaggleHub dataset!")
+
+        print(f"Found {len(images)} images, copying...")
+
+        count = 0
+        for src in images:
+            dst = os.path.join(image_dir, f"{count:06d}.jpg")
+            shutil.copy2(src, dst)
+            count += 1
 
     # ------------------------------------------------------
-    # 5. Create metadata
+    # 4. Create metadata.jsonl
     # ------------------------------------------------------
     create_metadata_jsonl(
         image_dir=image_dir,
