@@ -1,0 +1,12 @@
+{
+  "image_folder": "data/images",
+  "metadata_path": "data/metadata.jsonl",
+  "image_size": 64,
+  "batch_size": 16,
+  "lr": 1e-4,
+  "num_steps": 100000,
+  "log_every": 100,
+  "save_every": 2000,
+  "z_ch": 4,
+  "base_ch": 64
+}

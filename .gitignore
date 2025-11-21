@@ -4,3 +4,5 @@ todo.txt
 *.jsonl
 *.pyc
 utils/__pycache__
+*.pt
+*.png
