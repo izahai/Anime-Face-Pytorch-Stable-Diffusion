@@ -41,7 +41,9 @@ def main():
     )
     
     cfg = load_config(args.config, dataloader=train_loader)
-    trainer = VAETrainer(cfg)
+    trainer = VAETrainer(
+        cfg, train_loader, val_loader
+    )
     trainer.train()
 
 if __name__ == "__main__":
