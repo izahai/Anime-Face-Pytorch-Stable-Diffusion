@@ -62,20 +62,22 @@ class Encoder(nn.Module):
     def __init__(self, in_ch=3, base_ch=64, z_ch=4):
         super().__init__()
 
-        self.conv_in = Conv(in_ch, base_ch)
+        # 3 x 64 x 64
+        self.conv_in = Conv(in_ch, base_ch) # 64 x 64 x 64
 
         self.blocks = nn.ModuleList([
-            ResnetBlock(base_ch, base_ch),
-            Downsample(base_ch), # H/2 W/2
+            ResnetBlock(base_ch, base_ch), # 64 x 64 x 64
+            Downsample(base_ch), # (H/2 W/2) --> 64 x 32 x 32
 
-            ResnetBlock(base_ch, base_ch*2),
-            Downsample(base_ch*2),# H/4 W/4
+            ResnetBlock(base_ch, base_ch*2), # 128 x 32 x 32
+            Downsample(base_ch*2),# H/4 W/4 # 128 x 16 x 16
 
-            ResnetBlock(base_ch*2, base_ch*4),
+            ResnetBlock(base_ch*2, base_ch*4), # 256 x 16 x 16
         ])
 
         # 4C H/4 W/4, 2z: mean and log(var) -> sampling latent  
-        self.conv_out = Conv(base_ch*4, 2*z_ch, k=3, s=1, p=1)
+        self.conv_out = Conv(base_ch*4, 2*z_ch, k=3, s=1, p=1) 
+        # (4 x 16 x 16): mean 4 x 16 x 16: logvar -> 8 x 16 x 16
 
     def forward(self, x):
         h = self.conv_in(x)

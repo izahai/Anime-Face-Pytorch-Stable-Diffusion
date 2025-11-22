@@ -65,13 +65,13 @@ This generates:
 The VAE learns to compress and reconstruct 64×64 anime faces:
 
 ```
-Image (64×64)
+Image (3x64×64)
    ↓
-Encoder
+Encoder (Downsample x4)
    ↓
-Latent z (4×8×8)
+Latent z (4×16×16)
    ↓
-Decoder
+Decoder (Upsample x4)
    ↓
 Reconstructed Image
 ```
@@ -82,8 +82,7 @@ This VAE will be used later as the latent space encoder/decoder for your **mini 
 More updates coming soon…
 
 ## Paper Reference
-**Auto-Encoding Variational Bayes**
-Kingma & Welling, 2013
+**Auto-Encoding Variational Bayes** Kingma & Welling, 2013
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

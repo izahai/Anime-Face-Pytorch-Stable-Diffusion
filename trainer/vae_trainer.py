@@ -127,8 +127,8 @@ class VAETrainer:
                     }, best_ckpt)
                     print(f"[VAE] New BEST checkpoint saved: {best_ckpt}")
 
-                if self.args.push_to_hf:
-                    self.push_to_hf(best_ckpt)
+                    if self.args.push_to_hf:
+                        self.push_to_hf(best_ckpt)
 
         print("[VAE] Training complete!")
 
