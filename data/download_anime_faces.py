@@ -17,6 +17,8 @@ def download_anime_faces(out_dir="data", min_size=64):
     if os.path.exists(image_dir) and len(os.listdir(image_dir)) > 0:
         print("Dataset already exists. Skipping download.")
         return image_dir, meta_path
+    
+    os.makedirs(image_dir, exist_ok=True)
 
     # ------------------------------------------------------
     # Check Colab auto-mounted dataset
@@ -24,8 +26,6 @@ def download_anime_faces(out_dir="data", min_size=64):
     colab_path = "/kaggle/input/animefacedataset"
     if os.path.exists(colab_path):
         print("Found dataset in Colab:", colab_path)
-
-        os.makedirs(image_dir, exist_ok=True)
 
         shutil.copytree(colab_path, image_dir, dirs_exist_ok=True)
 
@@ -40,22 +40,7 @@ def download_anime_faces(out_dir="data", min_size=64):
     dataset_path = kagglehub.dataset_download("splcher/animefacedataset")
     print("Downloaded to:", dataset_path)
 
-    # Recursively find images
-    images = (
-        glob(os.path.join(dataset_path, "**/*.jpg"), recursive=True) +
-        glob(os.path.join(dataset_path, "**/*.png"), recursive=True)
-    )
-
-    if len(images) == 0:
-        raise FileNotFoundError("No images found in KaggleHub dataset!")
-
-    print(f"Found {len(images)} images. Copying...")
-
-    os.makedirs(image_dir, exist_ok=True)
-    for idx, src in enumerate(images):
-        ext = os.path.splitext(src)[1]
-        dst = os.path.join(image_dir, f"{idx:06d}{ext}")
-        shutil.copy2(src, dst)
+    shutil.copytree(dataset_path, image_dir, dirs_exist_ok=True)
 
     # Create metadata
     create_metadata_jsonl(image_dir=image_dir, output_jsonl=meta_path, min_size=min_size)
