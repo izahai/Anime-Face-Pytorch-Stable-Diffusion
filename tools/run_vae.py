@@ -12,7 +12,10 @@ def load_vae(ckpt_path, image_size=64, z_ch=4, base_ch=64, device=None):
         z_ch=z_ch,
     ).to(device)
 
-    model.load_state_dict(torch.load(ckpt_path, map_location=device))
+    state = torch.load(ckpt_path, map_location=device)
+    if "model" in state:
+        state = state["model"]
+    model.load_state_dict(state)
     model.eval()
 
     latent_size = image_size // 4
