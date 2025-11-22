@@ -166,7 +166,7 @@ class VAETrainer:
     
     def push_to_hf(self, ckpt_path):
         api = HfApi(token=self.hf_token)
-        repo_id = f"{self.hf_home}/anime_face_vae_epoch"
+        repo_id = f"{self.hf_username}/anime_face_vae_epoch"
 
         print(f"[HF] Uploading {ckpt_path} to {repo_id}...")
 
