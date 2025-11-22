@@ -1,5 +1,5 @@
 import os
-import json
+from pathlib import Path
 import shutil
 from glob import glob
 import kagglehub
@@ -37,10 +37,12 @@ def download_anime_faces(out_dir="data", min_size=64):
     # KaggleHub fallback
     # ------------------------------------------------------
     print("Downloading dataset from KaggleHub...")
-    dataset_path = kagglehub.dataset_download("splcher/animefacedataset")
+    dataset_path = Path(kagglehub.dataset_download("splcher/animefacedataset"))
     print("Downloaded to:", dataset_path)
 
-    shutil.copytree(dataset_path, image_dir, dirs_exist_ok=True)
+    images_path = dataset_path / "images"
+    print("Images are in:", images_path)
+    shutil.copytree(images_path, image_dir, dirs_exist_ok=True)
 
     # Create metadata
     create_metadata_jsonl(image_dir=image_dir, output_jsonl=meta_path, min_size=min_size)
