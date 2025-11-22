@@ -20,7 +20,7 @@ class VAETrainer:
 
         self.push_to_hf_enabled = getattr(args, "push_to_hf", False)
         if self.push_to_hf_enabled:
-            self.hf_home = os.getenv("HF_HOME", "./hf_cache")
+            self.hf_username = os.getenv("HF_USERNAME", "./hf_cache")
             self.hf_token = os.getenv("HF_TOKEN")
         
         self.train_loader = train_loader
@@ -169,6 +169,8 @@ class VAETrainer:
         repo_id = f"{self.hf_home}/anime_face_vae_epoch"
 
         print(f"[HF] Uploading {ckpt_path} to {repo_id}...")
+
+        api.create_repo(repo_id, repo_type="model", exist_ok=True)
 
         api.upload_file(
             path_or_fileobj=ckpt_path,
