@@ -2,7 +2,7 @@
 
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
-CKPT="vae_logs/checkpoints/epoch21.pt"
+CKPT="vae_logs/checkpoints/epoch36.pt"
 OUT="vae_logs/samples/grid21.png"
 
 # For generating a grid

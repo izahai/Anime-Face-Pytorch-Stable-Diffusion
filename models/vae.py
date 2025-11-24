@@ -1,62 +1,8 @@
+# models/vae.py
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from .conv import Conv
-
-ptdtype = {None: torch.float32, 'fp32': torch.float32, 'bf16': torch.bfloat16}
-
-class Normalize(nn.Module):
-    def __init__(self, ch, groups=32):
-        super().__init__()
-        self.norm = nn.GroupNorm(groups, ch)
-
-    def forward(self, x):
-        return self.norm(x)
-
-
-class ResnetBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, dropout=0.0):
-        super().__init__()
-
-        self.norm1 = Normalize(in_ch)
-        self.act1 = nn.SiLU()
-        self.conv1 = Conv(in_ch, out_ch, k=3, s=1, p=1)
-
-        self.norm2 = Normalize(out_ch)
-        self.act2 = nn.SiLU()
-        self.conv2 = Conv(out_ch, out_ch, k=3, s=1, p=1)
-
-        if in_ch != out_ch:
-            self.skip = Conv(in_ch, out_ch, k=1, s=1, p=0)
-        else:
-            self.skip = nn.Identity()
-
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        h = self.conv1(self.act1(self.norm1(x)))
-        h = self.dropout(h)
-        h = self.conv2(self.act2(self.norm2(h)))
-        return h + self.skip(x)
-
-class Downsample(nn.Module):
-    def __init__(self, ch):
-        super().__init__()
-
-        #CHW -> C H/2 W/2
-        self.conv = Conv(ch, ch, k=3, s=2, p=1) # stride = 2
-
-    def forward(self, x):
-        return self.conv(x)
-
-class Upsample(nn.Module):
-    def __init__(self, ch):
-        super().__init__()
-        self.conv = Conv(ch, ch, k=3, s=1, p=1)
-    
-    def forward(self, x):
-        x = F.interpolate(x, scale_factor=2, mode="nearest") #CHW -> C H*2 W*2
-        return self.conv(x)
+from models.blocks import Conv, ResnetBlock, Downsample, Upsample
 
 class Encoder(nn.Module):
     def __init__(self, in_ch=3, base_ch=64, z_ch=4):
