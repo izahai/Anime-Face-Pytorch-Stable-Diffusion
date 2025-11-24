@@ -13,8 +13,10 @@ class Normalize(nn.Module):
         return self.norm(x)
 
 class ResnetBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, dropout=0.0):
+    def __init__(self, in_ch, out_ch, dropout=0.0, t_dim=None):
         super().__init__()
+
+        self.t_mlp = nn.Linear(t_dim, out_ch) if t_dim else None
 
         self.norm1 = Normalize(in_ch)
         self.act1 = nn.SiLU()
@@ -31,8 +33,12 @@ class ResnetBlock(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x, t_emb=None):
         h = self.conv1(self.act1(self.norm1(x)))
+
+        # broadcasting (B,C,H,W) + (B,C,1,1)
+        h = h + (self.t_mlp(t_emb)[:, :, None, None] if t_emb is not None else 0)
+
         h = self.dropout(h)
         h = self.conv2(self.act2(self.norm2(h)))
         return h + self.skip(x)
