@@ -95,4 +95,28 @@ class SinusoidalPosEmb(nn.Module):
 
 
 class AttentionBlock(nn.Module):
-    pass
+    def __init__(self, ch):
+        super().__init__()
+        self.norm = Normalize(ch)
+        self.q = Conv(ch, ch, k=1, s=1, p=0)
+        self.k = Conv(ch, ch, k=1, s=1, p=0)
+        self.v = Conv(ch, ch, k=1, s=1, p=0)
+        self.proj = Conv(ch, ch, k=1, s=1, p=0)
+
+    def forward(self, x):
+        h = self.norm(x)
+        q, k, v = self.q(h), self.k(h), self.v(h)
+
+        b, c, h_, w_ = q.shape
+        q = q.reshape(b, c, h_*w_).transpose(1,2)   # (B,C,H,W) -> (B,HW,C)
+        k = k.reshape(b, c, h_*w_)                  # (B,C,HW)
+        v = v.reshape(b, c, h_*w_).transpose(1,2)   # (B,C,H,W) -> (B,HW,C)
+
+        qk = (q @ k) / (c ** 0.5) # (B,HW,HW) qk/sqrt(dim)
+        attn = torch.softmax(qk, dim=-1) # (B,HW,HW)
+        
+        out = attn @ v # (B,HW,HW) * (B,HW,C) -> (B,HW,C)
+        
+        # (B,HW,C) -> (B,C,HW) -> (B,C,H,W)
+        out = out.transpose(1,2).reshape(b, c, h_, w_)
+        return x + self.proj(out)
