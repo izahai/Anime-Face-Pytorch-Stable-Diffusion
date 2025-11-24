@@ -21,9 +21,9 @@ class Encoder(nn.Module):
             ResnetBlock(base_ch*2, base_ch*4), # 256 x 16 x 16
         ])
 
-        # 4C H/4 W/4, 2z: mean and log(var) -> sampling latent  
+        # 4C H/4 W/4 (4 x 16 x 16)
+        # 2z: mean and log(var) -> sampling latent  
         self.conv_out = Conv(base_ch*4, 2*z_ch, k=3, s=1, p=1) 
-        # (4 x 16 x 16): mean 4 x 16 x 16: logvar -> 8 x 16 x 16
 
     def forward(self, x):
         h = self.conv_in(x)
@@ -38,10 +38,10 @@ class Decoder(nn.Module):
 
         self.blocks = nn.ModuleList([
             ResnetBlock(base_ch*4, base_ch*4),
-            Upsample(base_ch*4), # 2H 2W
+            Upsample(base_ch*4), # 256 2h 2w
 
             ResnetBlock(base_ch*4, base_ch*2),
-            Upsample(base_ch*2), # 4H 4W
+            Upsample(base_ch*2), # 128 4h 4w = H W
 
             ResnetBlock(base_ch*2, base_ch),
         ])
