@@ -43,6 +43,8 @@ class DDPMScheduler:
         a: torch.Tensor, # (T,)
         t: torch.Tensor, # (B,)
     ): 
+        a = a.to(t.device)
+        
         out = a[t].float() # (B,)
         return out.view(-1, 1, 1, 1).to(t.device) # (B,1,1,1)
 
