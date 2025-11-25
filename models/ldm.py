@@ -53,7 +53,7 @@ class LatentDiffusion(nn.Module):
         return loss, pred_noise, gaus_noise, t
     
     @torch.no_grad()
-    def sample(self, num_samples, latent_shape=(4, 64, 64), device=None):
+    def sample(self, num_samples, latent_shape=(4, 16, 16), device=None):
         if device is None:
             device = next(self.parameters()).device
 
