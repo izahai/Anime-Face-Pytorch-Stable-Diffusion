@@ -9,7 +9,7 @@ from models.blocks import (
     Downsample, Upsample, SinusoidalPosEmb
 )
    
-class UNetModel(nn.Module):
+class UNet(nn.Module):
     def __init__(self, in_ch=4, base_ch=64, ch_mult=(1,2,4), t_dim=256):
         super().__init__()
 

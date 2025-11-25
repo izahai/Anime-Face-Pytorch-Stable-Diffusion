@@ -1,10 +1,10 @@
-# models/diffusion.py
+# models/ddpm.py
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class NoiseScheduler:
+class DDPMScheduler:
     def __init__(self, 
         num_steps: int = 1000,
         beta_start: float = 1e-4,
@@ -50,7 +50,7 @@ class NoiseScheduler:
     def add_noise(
         self, 
         x_0: torch.Tensor, 
-        gaus_noise: torch.Tensor, 
+        noise: torch.Tensor, 
         t: torch.Tensor
     ):
         """
@@ -65,66 +65,24 @@ class NoiseScheduler:
         sqrt_1m_alphas_cumprod_t = self._extract(
             self.sqrt_1m_alphas_cumprod, t
         )
-        return sqrt_alphas_cumprod_t * x_0 + sqrt_1m_alphas_cumprod_t * gaus_noise
+        return sqrt_alphas_cumprod_t * x_0 + sqrt_1m_alphas_cumprod_t * noise
+    
+    # ==== Reverse Process ====
+    def step(self, x_t, noise_pred, t):
+        betas_t = self._extract(self.betas, t)             
+        alphas_t = self._extract(self.alphas, t)           
+        sqrt_recip_1m_alphas_cumprod_t = self._extract(self.sqrt_recip_1m_alphas_cumprod, t)
 
-    # def get_x0_by_xT_eps(
-    #     self, x_t: torch.Tensor,
-    #     t: torch.Tensor, 
-    #     eps: torch.Tensor
-    # ):
-    #     """
-    #     x_t = sqrt(bar_a(t)) * x_0 + sqrt(1 - bar_a(t)) * eps
-    #     --> x_0 = x_t / sqrt(bar_a(t)) - sqrt(1 - bar_a(t)) * eps
-    #     x_t, eps: (B, C, H, W)
-    #     t: (B,)
-    #     """
-    #     sqrt_recip_alphas_cumprod_t = self._extract(
-    #         self.sqrt_recip_alphas_cumprod, t
-    #     ) # (B, C, H, W)
-    #     sqrt_1m_alphas_cumprod_t = self._extract(
-    #         self.sqrt_1m_alphas_cumprod, t
-    #     )
-    #     return sqrt_recip_alphas_cumprod_t * x_t - sqrt_1m_alphas_cumprod_t * eps
-        
-    # def q_posterior_mean(
-    #     self, x_start: torch.Tensor, 
-    #     x_t: torch.Tensor, 
-    #     t: torch.Tensor
-    # ):
-    #     pass
-
-    # def step(
-    #     self,
-    #     model_output: torch.Tensor,
-    #     t: torch.Tensor,
-    #     x_t: torch.Tensor,
-    #     prediction_type: str = "epsilon",
-    # ):
-    #     pass
-
-
-class DDPM(nn.Module):
-    def __init__(self, model: nn.Module, noise_scheduler: NoiseScheduler):
-        super().__init__()
-        self.model = model
-        self.noise_scheduler = noise_scheduler
-
-    def forward(self, x_0):
-        device = x_0.device
-        b = x_0.size(0)
-
-        t = torch.randint(
-            low=0,
-            high=self.noise_scheduler.num_steps,
-            size=(b,),
-            device=device,
-            dtype=torch.long,
+        # x_{t-1} = 1/sqrt(alpha_t) * ( x_t - (beta_t / sqrt(1 - alpha_bar_t)) * eps )
+        mean = (
+            (1.0 / torch.sqrt(alphas_t)) *
+            (x_t - (betas_t * sqrt_recip_1m_alphas_cumprod_t) * noise_pred)
         )
 
-        gaus_noise = torch.randn_like(x_0)
+        noise = torch.randn_like(x_t)
 
-        x_t =  self.noise_scheduler.add_noise(x_0, gaus_noise, t)
+        nonzero_mask = (t > 0).float().view(-1,1,1,1)
+        sigma_t = torch.sqrt(betas_t)
 
-        pred_noise = self.model(x_t, t)
-
-        return F.mse_loss(pred_noise, gaus_noise)
+        x_prev = mean + nonzero_mask * sigma_t * noise
+        return x_prev
