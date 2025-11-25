@@ -64,7 +64,8 @@ class AutoEncoder(nn.Module):
     def encode(self, x):
         h = self.encoder(x) # C H/4 W/4
         mu, logvar = torch.chunk(h, 2, dim=1)
-        return mu, logvar
+        z = self.reparameterize(mu, logvar)
+        return z
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5*logvar)
@@ -76,7 +77,8 @@ class AutoEncoder(nn.Module):
         return self.decoder(z)
     
     def forward(self, x):
-        mu, logvar = self.encode(x)
+        h = self.encode(x)
+        mu, logvar = torch.chunk(h, 2, dim=1)
         z = self.reparameterize(mu, logvar)
         recon = self.decode(z)
         return recon, mu, logvar
