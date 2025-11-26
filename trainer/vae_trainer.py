@@ -83,7 +83,7 @@ class VAETrainer:
         save_path = f"{self.args.out_dir}/samples/recon_epoch_{self.epoch}.png"
         save_image(grid, save_path)
 
-        print(f"[VAE] Saved reconstruction grid: {save_path}")
+        print(f"[SAMPLE] Saved reconstruction grid: {save_path}")
         self.model.train()
 
 
@@ -95,17 +95,17 @@ class VAETrainer:
             "epoch": self.epoch,
             "global_step": self.global_step
         }, ckpt_path)
-        print(f"[VAE] Saved checkpoint: {ckpt_path}")
+        print(f"[SAVE] Saved checkpoint: {ckpt_path}")
 
 
     def load_checkpoint(self, ckpt_path):
-        print(f"[VAE] Loading checkpoint: {ckpt_path}")
+        print(f"[LOAD] Loading checkpoint: {ckpt_path}")
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.model.load_state_dict(ckpt["model"])
         self.optimizer.load_state_dict(ckpt["optimizer"])
         self.epoch = ckpt["epoch"]
         self.global_step = ckpt["global_step"]
-        print(f"[VAE] Resumed from epoch {self.epoch}, step {self.global_step}")
+        print(f"[RESUME] from epoch {self.epoch}, step {self.global_step}")
 
 
     def train(self, resume_path=None):
@@ -159,7 +159,7 @@ class VAETrainer:
             mean_kl = epoch_kl / num_batches
 
             print(
-                f"[VAL] Epoch {self.epoch} | "
+                f"[TRAIN] Epoch {self.epoch} | "
                 f"loss={mean_loss:.4f} | recon={mean_recon:.4f} | KL={mean_kl:.4f}"
             )
 
@@ -177,12 +177,12 @@ class VAETrainer:
                         "epoch": self.epoch,
                         "global_step": self.global_step
                     }, best_ckpt)
-                    print(f"[VAE] New BEST checkpoint saved: {best_ckpt}")
+                    print(f"[BEST] new checkpoint saved: {best_ckpt}")
 
                     if self.args.push_to_hf:
                         self.push_to_hf(best_ckpt)
 
-        print("[VAE] Training complete!")
+        print("[TRAINING COMPLETE] :D")
 
     def validate(self, val_loader):
         """Runs one full validation epoch and returns avg loss metrics."""
