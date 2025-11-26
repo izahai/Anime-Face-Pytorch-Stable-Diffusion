@@ -1,15 +1,15 @@
 # ========== DATA ==========
 dataset_name: splcher/animefacedataset
 metadata_name: metadata_lowres.jsonl
-image_size: 64
+image_size: 512
 
 # ========== MODEL ==========
-base_ch: 64
+base_ch: 128
 z_ch: 4
-factor: 4
+factor: 8
 
 # ========== TRAINING ==========
-batch_size: 256
+batch_size: 1
 learning_rate: 1e-4
 num_epochs: 100
 beta: 0.0005

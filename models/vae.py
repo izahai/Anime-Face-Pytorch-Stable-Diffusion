@@ -58,6 +58,7 @@ class Decoder(nn.Module):
             self.blocks.append(Upsample(ch))
             self.blocks.append(ResnetBlock(ch, ch//2))
 
+        ch //= 2
         self.blocks.append(Upsample(ch))
         self.blocks.append(ResnetBlock(ch, ch))
 
