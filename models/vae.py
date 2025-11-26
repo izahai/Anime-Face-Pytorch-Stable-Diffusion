@@ -1,29 +1,37 @@
 # models/vae.py
 
+import math
 import torch
 import torch.nn as nn
 from models.blocks import Conv, ResnetBlock, Downsample, Upsample
 
 class Encoder(nn.Module):
-    def __init__(self, in_ch=3, base_ch=64, z_ch=4):
+    def __init__(self, in_ch=3, base_ch=64, z_ch=4, down_factor=4):
         super().__init__()
 
-        # 3 x 64 x 64
-        self.conv_in = Conv(in_ch, base_ch) # 64 x 64 x 64
+        assert down_factor in [2,4,8], "down_factor must be 2,4,8"
+        num_down = int(math.log2(down_factor))
 
-        self.blocks = nn.ModuleList([
-            ResnetBlock(base_ch, base_ch), # 64 x 64 x 64
-            Downsample(base_ch), # (H/2 W/2) --> 64 x 32 x 32
+        self.conv_in = Conv(in_ch, base_ch) 
 
-            ResnetBlock(base_ch, base_ch*2), # 128 x 32 x 32
-            Downsample(base_ch*2),# H/4 W/4 # 128 x 16 x 16
+        ch = base_ch
+        self.blocks = nn.ModuleList()
+        
+        # First base _ch resnet
+        self.blocks.append(ResnetBlock(ch, ch))
+        self.blocks.append(Downsample(ch))
 
-            ResnetBlock(base_ch*2, base_ch*4), # 256 x 16 x 16
-        ])
+        for _ in range(num_down-1):
+            self.blocks.append(ResnetBlock(ch, ch*2))
+            self.blocks.append(Downsample(ch*2))
+            ch *= 2
 
-        # 4C H/4 W/4 (4 x 16 x 16)
-        # 2z: mean and log(var) -> sampling latent  
-        self.conv_out = Conv(base_ch*4, 2*z_ch, k=3, s=1, p=1) 
+        self.blocks.append(ResnetBlock(ch, ch * 2))
+
+        # (2z, H/factor, W/factor)
+        # 2z: mean and log(var) -> sampling latent
+        final_ch = base_ch * down_factor
+        self.conv_out = Conv(final_ch, 2*z_ch, k=3, s=1, p=1) 
 
     def forward(self, x):
         h = self.conv_in(x)
@@ -32,19 +40,26 @@ class Encoder(nn.Module):
         return self.conv_out(h)
 
 class Decoder(nn.Module):
-    def __init__(self, out_ch=3, base_ch=64, z_ch=4):
+    def __init__(self, out_ch=3, base_ch=64, z_ch=4, up_factor=4):
         super().__init__()
-        self.conv_in = Conv(z_ch, base_ch*4)
 
-        self.blocks = nn.ModuleList([
-            ResnetBlock(base_ch*4, base_ch*4),
-            Upsample(base_ch*4), # 256 2h 2w
+        assert up_factor in [2,4,8], "up_factor must be 2,4,8"
+        num_up = int(math.log2(up_factor))
 
-            ResnetBlock(base_ch*4, base_ch*2),
-            Upsample(base_ch*2), # 128 4h 4w = H W
+        ch = base_ch * up_factor
+        self.conv_in = Conv(z_ch, ch)
 
-            ResnetBlock(base_ch*2, base_ch),
-        ])
+        self.blocks = nn.ModuleList()
+        
+        self.blocks.append(ResnetBlock(ch, ch//2))
+        
+        for _ in range(num_up-1):
+            ch //= 2
+            self.blocks.append(Upsample(ch))
+            self.blocks.append(ResnetBlock(ch, ch//2))
+
+        self.blocks.append(Upsample(ch))
+        self.blocks.append(ResnetBlock(ch, ch))
 
         # original shape (3,H,W)
         self.conv_out = Conv(base_ch, out_ch, k=3, s=1, p=1)
@@ -56,10 +71,10 @@ class Decoder(nn.Module):
         return self.conv_out(h)
 
 class AutoEncoder(nn.Module):
-    def __init__(self, in_ch=3, base_ch=64, z_ch=4):
+    def __init__(self, in_ch=3, base_ch=64, z_ch=4, factor=4):
         super().__init__()
-        self.encoder = Encoder(in_ch, base_ch, z_ch)
-        self.decoder = Decoder(in_ch, base_ch, z_ch)
+        self.encoder = Encoder(in_ch, base_ch, z_ch, factor)
+        self.decoder = Decoder(in_ch, base_ch, z_ch, factor)
 
     def encode(self, x):
         h = self.encoder(x) # C H/4 W/4
