@@ -21,10 +21,10 @@ def merge_args_with_yaml(args, yaml_cfg):
     return args
 
 
-def build_dataloaders(args):
+def build_dataloaders(args, image_dir, meta_path):
     dataset = AnimeFolderDataset(
-        folder=args.image_folder,
-        metadata_path=args.metadata_path,
+        folder=image_dir,
+        metadata_path=meta_path,
         image_size=args.image_size
     )
 

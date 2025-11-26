@@ -18,10 +18,14 @@ def main():
     yaml_cfg = load_yaml(args.config)
     args = merge_args_with_yaml(args, yaml_cfg)
     
-    download_anime_faces()
+    image_dir, meta_path = download_anime_faces(
+                                args.image_size, 
+                                args.dataset_name,
+                                args.metadata_name
+                            )
 
     # Build loaders
-    train_loader, val_loader = build_dataloaders(args)
+    train_loader, val_loader = build_dataloaders(args, image_dir, meta_path)
 
     # Train
     trainer = VAETrainer(args, train_loader, val_loader)

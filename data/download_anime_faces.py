@@ -6,20 +6,20 @@ import kagglehub
 from data.create_metadata import create_metadata_jsonl
 
 def download_anime_faces(
+        min_size,
+        dataset_name,
+        metadata_name,
         out_dir="data", 
-        min_size=64,
-        dataset_name="splcher/animefacedataset"
     ):
     if dataset_name == "subinium/highresolution-anime-face-dataset-512x512":
         sub_img_dir = "portraits"
-        metadata_name = "metadata_highres.jsonl"
         colab_cache = "highresolution-anime-face-dataset-512x512"
     elif dataset_name == "splcher/animefacedataset":
         sub_img_dir = "images"
-        metadata_name = "metadata_lowres.jsonl"
         colab_cache = "animefacedataset"
     else:
         print("[Error]: Dataset name is invalid!")
+        return 
     
     image_dir = os.path.join(out_dir, sub_img_dir)
     meta_path = os.path.join(out_dir, metadata_name)

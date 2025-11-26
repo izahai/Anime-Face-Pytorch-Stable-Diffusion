@@ -1,0 +1,24 @@
+# ========== DATA ==========
+dataset_name: subinium/highresolution-anime-face-dataset-512x512
+metadata_name: metadata_highres.jsonl
+image_size: 512
+
+# ========== MODEL ==========
+base_ch: 128
+z_ch: 4
+
+# ========== TRAINING ==========
+batch_size: 32
+learning_rate: 1e-4
+num_epochs: 100
+beta: 0.0005
+num_workers: 2
+
+out_dir: outputs/vae_highres
+
+# Logging & checkpoints
+log_every: 1
+save_every: 5
+val_every: 1
+
+push_to_hf: False
