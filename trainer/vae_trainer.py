@@ -10,35 +10,23 @@ load_dotenv()
 
 from losses.vae_loss import vae_loss_L2, vae_gan_lpips_charbonnier_loss
 from models.vae import AutoEncoder
+from trainer.base_trainer import Trainer
 
-class VAETrainer:
+class VAETrainer(Trainer):
     def __init__(self, args, train_loader, val_loader, model=None):
-        self.args = args
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        os.makedirs(os.path.join(args.out_dir, "samples"), exist_ok=True)
-        os.makedirs(os.path.join(args.out_dir, "checkpoints"), exist_ok=True)
-
-        self.push_to_hf_enabled = getattr(args, "push_to_hf", False)
-        if self.push_to_hf_enabled:
-            self.hf_username = os.getenv("HF_USERNAME", "./hf_cache")
-            self.hf_token = os.getenv("HF_TOKEN")
-        
-        self.train_loader = train_loader
-        self.val_loader = val_loader
+        super().__init__(args, train_loader, val_loader)
 
         self.model = model or AutoEncoder(
             in_ch=3,
             base_ch=args.base_ch,
             z_ch=args.z_ch,
-            factor=args.factor
+            factor=args.factor,
         ).to(self.device)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=args.learning_rate)
-
-        self.epoch = 0
-        self.global_step = 0
-        self.best_val_loss = float("inf")
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(),
+            lr=args.learning_rate,
+        )
 
     def save_reconstruction(self, x=None, num_samples=8, nrow=None):
         """
@@ -86,28 +74,6 @@ class VAETrainer:
         print(f"[SAMPLE] Saved reconstruction grid: {save_path}")
         self.model.train()
 
-
-    def save_checkpoint(self):
-        ckpt_path = f'{self.args.out_dir}/checkpoints/vae_epoch_{self.epoch}.pt'
-        torch.save({
-            "model": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "epoch": self.epoch,
-            "global_step": self.global_step
-        }, ckpt_path)
-        print(f"[SAVE] Saved checkpoint: {ckpt_path}")
-
-
-    def load_checkpoint(self, ckpt_path):
-        print(f"[LOAD] Loading checkpoint: {ckpt_path}")
-        ckpt = torch.load(ckpt_path, map_location=self.device)
-        self.model.load_state_dict(ckpt["model"])
-        self.optimizer.load_state_dict(ckpt["optimizer"])
-        self.epoch = ckpt["epoch"]
-        self.global_step = ckpt["global_step"]
-        print(f"[RESUME] from epoch {self.epoch}, step {self.global_step}")
-
-
     def train(self, resume_path=None):
         # -------- Resume if provided --------
         if resume_path:
@@ -151,7 +117,8 @@ class VAETrainer:
                 self.save_reconstruction(num_samples=16)
 
             if (ep + 1) % self.args.save_every == 0:
-                self.save_checkpoint()
+                ckpt_path = f'{self.args.out_dir}/checkpoints/vae_epoch_{self.epoch}.pt'
+                self.save_checkpoint(ckpt_path)
             
             # ---- Train Loss ----
             mean_loss = epoch_loss / num_batches
@@ -170,17 +137,12 @@ class VAETrainer:
                 # Save best checkpoint
                 if val_loss < self.best_val_loss:
                     self.best_val_loss = val_loss
-                    best_ckpt = f'{self.args.out_dir}/checkpoints/best_vae_epoch_{self.epoch}.pt'
-                    torch.save({
-                        "model": self.model.state_dict(),
-                        "optimizer": self.optimizer.state_dict(),
-                        "epoch": self.epoch,
-                        "global_step": self.global_step
-                    }, best_ckpt)
-                    print(f"[BEST] new checkpoint saved: {best_ckpt}")
+                    best_ckpt_path = f'{self.args.out_dir}/checkpoints/best_vae_epoch_{self.epoch}.pt'
+                    self.save_checkpoint(best_ckpt_path)
+                    print(f"[BEST] new checkpoint saved: {best_ckpt_path}")
 
                     if self.args.push_to_hf:
-                        self.push_to_hf(best_ckpt)
+                        self.push_to_hf(best_ckpt_path)
 
         print("[TRAINING COMPLETE] :D")
 
@@ -215,21 +177,3 @@ class VAETrainer:
 
         self.model.train()
         return avg_loss, avg_recon, avg_kl
-    
-    def push_to_hf(self, ckpt_path):
-        api = HfApi(token=self.hf_token)
-        repo_id = f"{self.hf_username}/anime_face_vae_epoch"
-
-        print(f"[HF] Uploading {ckpt_path} to {repo_id}...")
-
-        api.create_repo(repo_id, repo_type="model", exist_ok=True)
-
-        api.upload_file(
-            path_or_fileobj=ckpt_path,
-            path_in_repo=f"epoch{self.epoch}.pt",
-            repo_id=repo_id,
-            repo_type="model",
-            commit_message=f"Update best checkpoint at epoch {self.epoch}"
-        )
-
-        print(f"[HF] Uploaded to https://huggingface.co/{repo_id}")
