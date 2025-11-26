@@ -38,26 +38,17 @@ def download_anime_faces(
     # ------------------------------------------------------
     # Check Colab auto-mounted dataset
     # ------------------------------------------------------
-    colab_path = f"/kaggle/input/{colab_cache}"
-    if os.path.exists(colab_path):
+    colab_path = Path(f"/kaggle/input/{colab_cache}")
+    if colab_path.exists():
         print("Found dataset in Colab:", colab_path)
+        dataset_path = colab_path
+    else:
+        print("Downloading dataset from KaggleHub...")
+        dataset_path = Path(kagglehub.dataset_download(dataset_name))
+        print("Downloaded to:", dataset_path)
 
-        shutil.copytree(colab_path, image_dir, dirs_exist_ok=True)
-
-        # Create metadata
-        create_metadata_jsonl(image_dir=image_dir, output_jsonl=meta_path, min_size=min_size)
-        return image_dir, meta_path
-
-    # ------------------------------------------------------
-    # KaggleHub fallback
-    # ------------------------------------------------------
-    print("Downloading dataset from KaggleHub...")
-    dataset_path = Path(kagglehub.dataset_download(dataset_name))
-    print("Downloaded to:", dataset_path)
-
-    images_path = dataset_path / sub_img_dir
-    print("Images are in:", images_path)
-    shutil.copytree(images_path, image_dir, dirs_exist_ok=True)
+    image_dir = dataset_path / sub_img_dir
+    print("Images are in:", image_dir)
 
     # Create metadata
     valid_images = create_metadata_jsonl(image_dir=image_dir, output_jsonl=meta_path, min_size=min_size)
