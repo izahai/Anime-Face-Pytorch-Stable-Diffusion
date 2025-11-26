@@ -12,11 +12,11 @@ def download_anime_faces(
     ):
     if dataset_name == "subinium/highresolution-anime-face-dataset-512x512":
         sub_img_dir = "portraits"
-        metadata_name = "metadata_512x512.jsonl"
+        metadata_name = "metadata_highres.jsonl"
         colab_cache = "highresolution-anime-face-dataset-512x512"
     elif dataset_name == "splcher/animefacedataset":
         sub_img_dir = "images"
-        metadata_name = "metadata_64x64.jsonl"
+        metadata_name = "metadata_lowres.jsonl"
         colab_cache = "animefacedataset"
     else:
         print("[Error]: Dataset name is invalid!")
@@ -60,6 +60,8 @@ def download_anime_faces(
     shutil.copytree(images_path, image_dir, dirs_exist_ok=True)
 
     # Create metadata
-    create_metadata_jsonl(image_dir=image_dir, output_jsonl=meta_path, min_size=min_size)
+    valid_images = create_metadata_jsonl(image_dir=image_dir, output_jsonl=meta_path, min_size=min_size)
+
+    print(f"Number of images: {len(valid_images)}")
 
     return image_dir, meta_path
