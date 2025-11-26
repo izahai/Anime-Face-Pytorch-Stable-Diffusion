@@ -1,6 +1,5 @@
 import os
 import json
-from PIL import Image
 
 def create_metadata_jsonl(
     image_dir: str,
@@ -26,19 +25,6 @@ def create_metadata_jsonl(
 
     for fname in files:
         if not fname.lower().endswith(valid_ext):
-            continue
-
-        img_path = os.path.join(image_dir, fname)
-
-        try:
-            img = Image.open(img_path)
-        except:
-            continue  # skip unreadable images
-
-        w, h = img.size
-
-        # Skip small images
-        if w < min_size or h < min_size:
             continue
 
         # Add valid entry
