@@ -5,9 +5,24 @@ from glob import glob
 import kagglehub
 from data.create_metadata import create_metadata_jsonl
 
-def download_anime_faces(out_dir="data", min_size=64):
-    image_dir = os.path.join(out_dir, "images")
-    meta_path = os.path.join(out_dir, "metadata.jsonl")
+def download_anime_faces(
+        out_dir="data", 
+        min_size=64,
+        dataset_name="splcher/animefacedataset"
+    ):
+    if dataset_name == "subinium/highresolution-anime-face-dataset-512x512":
+        sub_img_dir = "portraits"
+        metadata_name = "metadata_512x512.jsonl"
+        colab_cache = "highresolution-anime-face-dataset-512x512"
+    elif dataset_name == "splcher/animefacedataset":
+        sub_img_dir = "images"
+        metadata_name = "metadata_64x64.jsonl"
+        colab_cache = "animefacedataset"
+    else:
+        print("[Error]: Dataset name is invalid!")
+    
+    image_dir = os.path.join(out_dir, sub_img_dir)
+    meta_path = os.path.join(out_dir, metadata_name)
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -23,7 +38,7 @@ def download_anime_faces(out_dir="data", min_size=64):
     # ------------------------------------------------------
     # Check Colab auto-mounted dataset
     # ------------------------------------------------------
-    colab_path = "/kaggle/input/animefacedataset"
+    colab_path = f"/kaggle/input/{colab_cache}"
     if os.path.exists(colab_path):
         print("Found dataset in Colab:", colab_path)
 
@@ -37,10 +52,10 @@ def download_anime_faces(out_dir="data", min_size=64):
     # KaggleHub fallback
     # ------------------------------------------------------
     print("Downloading dataset from KaggleHub...")
-    dataset_path = Path(kagglehub.dataset_download("splcher/animefacedataset"))
+    dataset_path = Path(kagglehub.dataset_download(dataset_name))
     print("Downloaded to:", dataset_path)
 
-    images_path = dataset_path / "images"
+    images_path = dataset_path / sub_img_dir
     print("Images are in:", images_path)
     shutil.copytree(images_path, image_dir, dirs_exist_ok=True)
 
