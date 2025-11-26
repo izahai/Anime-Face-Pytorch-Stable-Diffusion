@@ -85,7 +85,7 @@ class AutoEncoder(nn.Module):
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5*logvar)
         # eps ~ N(0,1), std arg just for the shape not value
-        eps = torch.randn_like(std) 
+        eps = torch.randn_like(std)
         return mu + eps*std
 
     def decode(self, z):

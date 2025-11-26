@@ -10,3 +10,4 @@ def vae_loss(recon, x, mu, logvar, beta=1e-6):
 
     total_loss = recon_loss + beta*kl
     return total_loss, recon_loss, kl
+

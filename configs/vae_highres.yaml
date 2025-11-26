@@ -6,6 +6,7 @@ image_size: 512
 # ========== MODEL ==========
 base_ch: 128
 z_ch: 4
+factor: 8
 
 # ========== TRAINING ==========
 batch_size: 32
