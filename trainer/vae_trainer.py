@@ -8,7 +8,7 @@ import torch
 from dotenv import load_dotenv
 load_dotenv()
 
-from losses.vae_loss import vae_loss
+from losses.vae_loss import vae_loss_L2, vae_gan_lpips_charbonnier_loss
 from models.vae import AutoEncoder
 
 class VAETrainer:
@@ -128,7 +128,7 @@ class VAETrainer:
 
                 with amp.autocast(self.device):
                     recon, mu, logvar = self.model(x)
-                    loss, recon_loss, kl_loss = vae_loss(recon, x, mu, logvar, beta=self.args.beta)
+                    loss, recon_loss, kl_loss = vae_loss_L2(recon, x, mu, logvar, beta=self.args.beta)
 
                 self.optimizer.zero_grad()
                 scaler.scale(loss).backward()
@@ -195,7 +195,7 @@ class VAETrainer:
                 x = x.to(self.device)
 
                 recon, mu, logvar = self.model(x)
-                loss, recon_loss, kl_loss = vae_loss(
+                loss, recon_loss, kl_loss = vae_loss_L2(
                     recon, x, mu, logvar, beta=self.args.beta
                 )
 
