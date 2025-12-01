@@ -1,5 +1,9 @@
 import torch
 import argparse
+import random
+from torchvision import transforms
+from PIL import Image
+import os
 from torchvision.utils import save_image
 from models.vae import AutoEncoder
 
@@ -42,6 +46,69 @@ def save_single_sample(model, device, z_ch, latent_size, out_path="sample.png"):
     save_image(img, out_path)
     print(f"[VAE] Saved sample to {out_path}")
 
+def save_random_reconstruction_grid(
+    model,
+    folder,
+    image_size,
+    recon_n=10,
+    nrow=5,
+    out_path="recon_grid.png"
+):
+    """
+    Randomly sample N images from a folder, reconstruct using the VAE,
+    and save a grid of [original | reconstruction].
+
+    Args:
+        model: AutoEncoder
+        folder: path to folder containing images
+        image_size: resize/crop size
+        recon_n: number of random images
+        nrow: images per row *for the merged grid*
+        out_path: save file
+    """
+    device = next(model.parameters()).device
+    model.eval()
+
+    # --- Load files ---
+    files = [f for f in os.listdir(folder) if f.lower().endswith(("png", "jpg", "jpeg"))]
+    assert len(files) > 0, "No image files found in folder"
+
+    # random select recon_n images
+    chosen = random.sample(files, k=min(recon_n, len(files)))
+
+    tf = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.CenterCrop(image_size),
+        transforms.ToTensor(),     # [0,1]
+    ])
+
+    imgs = []
+    for f in chosen:
+        img = Image.open(os.path.join(folder, f)).convert("RGB")
+        imgs.append(tf(img))
+
+    imgs = torch.stack(imgs, dim=0)   # (B,3,H,W)
+
+    # ---- Convert to [-1,1] ----
+    imgs_norm = imgs * 2 - 1
+    imgs_norm = imgs_norm.to(device)
+
+    with torch.no_grad():
+        z = model.encode_to_z(imgs_norm)
+        recons = model.decode(z)
+
+    # back to [0,1]
+    imgs_vis = (imgs_norm + 1) * 0.5
+    recons_vis = (recons + 1) * 0.5
+
+    # merge horizontally (B, 3, H, W*2)
+    merged = torch.cat([imgs_vis, recons_vis], dim=3)
+    merged = merged.clamp(0, 1)
+
+    save_image(merged, out_path, nrow=nrow)
+    print(f"[VAE] Saved random reconstruction grid → {out_path}")
+
+
 def save_sample_grid(model, device, z_ch, latent_size, n=10, nrow=5, out_path="grid.png"):
     z = sample_latent(n, z_ch, latent_size, device)
     imgs = vae_generate(model, z)
@@ -78,6 +145,16 @@ def parse_args():
 
     parser.add_argument("--base_ch", type=int, default=64,
                         help="Base channel count of the VAE")
+    
+    parser.add_argument("--recon", action="store_true",
+                    help="Run random reconstruction mode")
+
+    parser.add_argument("--recon_n", type=int, default=10,
+                        help="Number of random images for reconstruction")
+
+    parser.add_argument("--input_folder", type=str, default=None,
+                        help="Folder containing images for reconstruction")
+
 
     return parser.parse_args()
 
@@ -91,6 +168,21 @@ if __name__ == '__main__':
         base_ch=args.base_ch,
         device=None
     )
+
+    if args.recon:
+        if args.input_folder is None:
+            raise ValueError("You must provide --input_folder for reconstruction.")
+
+        save_random_reconstruction_grid(
+            model=model,
+            folder=args.input_folder,
+            image_size=args.image_size,
+            recon_n=args.recon_n,
+            nrow=args.nrow,
+            out_path=args.out
+        )
+        exit()
+
     
     if args.grid:
         save_sample_grid(

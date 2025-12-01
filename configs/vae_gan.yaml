@@ -5,15 +5,23 @@ image_size: 64
 
 # ========== MODEL ==========
 base_ch: 64
+disc_ch: 64
 z_ch: 4
 factor: 4
 
-# ========== TRAINING ==========
+# ========== LOSS ==========
+kl_beta: 0.0005
+w_charb: 1.0
+w_lpips: 1.0
+w_gan: 0.1
+
+# ========== TRAINING & OPTIMIZER ==========
 batch_size: 512
 learning_rate: 1e-4
 num_epochs: 100
-kl_beta: 0.0005
-num_workers: 
+adam_beta1: 0.5
+adam_beta2: 0.999
+num_workers: 8
 
 out_dir: outputs/vae_lowres
 

@@ -1,0 +1,214 @@
+# trainer/vae_gan_trainer.py
+
+import torch
+import torch.nn.functional as F
+from torch import amp
+from tqdm import tqdm
+from torchvision.utils import save_image, make_grid
+
+from trainer.base_trainer import Trainer
+from models.vae import AutoEncoder
+from models.discriminator import Discriminator
+from losses.vae_loss import vae_gan_lpips_charbonnier_loss
+
+
+class VAEGANTrainer(Trainer):
+    """
+    Full VAE + GAN + LPIPS trainer.
+    - Generator: AutoEncoder (VAE)
+    - Discriminator: PatchGAN
+    """
+
+    def __init__(self, args, train_loader, val_loader, model=None, lpips_model=None):
+        super().__init__(args, train_loader, val_loader)
+
+        # -------------------------
+        # Setup Generator (VAE)
+        # -------------------------
+        self.model = model or AutoEncoder(
+            in_ch=3,
+            base_ch=args.base_ch,
+            z_ch=args.z_ch,
+            factor=args.factor,
+        ).to(self.device)
+
+        self.optimizer_g = torch.optim.Adam(
+            self.model.parameters(),
+            lr=args.learning_rate,
+            betas=(args.adam_beta1, args.adam_beta2),
+        )
+
+        # -------------------------
+        # Setup Discriminator
+        # -------------------------
+        self.discriminator = Discriminator(
+            in_ch=3,
+            base_ch=args.disc_ch,
+        ).to(self.device)
+
+        self.optimizer_d = torch.optim.Adam(
+            self.discriminator.parameters(),
+            lr=args.learning_rate * args.d_lr_scale,
+            betas=(args.adam_beta1, args.adam_beta2),
+        )
+
+        # -------------------------
+        # LPIPS
+        # -------------------------
+        self.lpips_model = lpips_model.to(self.device)
+        self.lpips_model.eval()
+
+    # ----------------------------------------------------------------
+    # Save reconstructions (same as VAETrainer)
+    # ----------------------------------------------------------------
+    def save_reconstruction(self, x=None, num_samples=8, nrow=None):
+        self.model.eval()
+
+        if x is None:
+            for batch in self.train_loader:
+                x = batch.to(self.device)
+                break
+
+        x = x[:num_samples]
+        with torch.no_grad():
+            recon, _, _ = self.model(x)
+
+        x_vis = (x + 1) * 0.5
+        recon_vis = (recon + 1) * 0.5
+
+        grid = torch.cat([x_vis, recon_vis], dim=0)
+        grid = make_grid(grid, nrow=num_samples if nrow is None else nrow)
+
+        save_path = f"{self.args.out_dir}/samples/recon_epoch_{self.epoch}.png"
+        save_image(grid, save_path)
+        print(f"[SAMPLE] Saved reconstruction: {save_path}")
+
+        self.model.train()
+
+    # ----------------------------------------------------------------
+    # Training Loop
+    # ----------------------------------------------------------------
+    def train(self, resume_path=None):
+        if resume_path:
+            self.load_checkpoint(resume_path)  # inherited from base class
+
+        scaler = amp.GradScaler(self.device)
+
+        for ep in range(self.epoch, self.args.num_epochs):
+            self.epoch = ep
+            pbar = tqdm(self.train_loader, desc=f"Epoch {ep}")
+
+            for x in pbar:
+                x = x.to(self.device)
+
+                # ============================================================
+                # 1. Train Generator (VAE)
+                # ============================================================
+                with amp.autocast(self.device):
+                    recon, mu, logvar = self.model(x)
+
+                    disc_fake = self.discriminator(recon)
+
+                    g_loss, logs = vae_gan_lpips_charbonnier_loss(
+                        recon=recon,
+                        x=x,
+                        mu=mu,
+                        logvar=logvar,
+                        disc_fake=disc_fake,
+                        lpips_model=self.lpips_model,
+                        beta_kl=self.args.kl_beta,
+                        w_charb=self.args.w_charb,
+                        w_lpips=self.args.w_lpips,
+                        w_gan=self.args.w_gan,
+                    )
+
+                self.optimizer_g.zero_grad()
+                scaler.scale(g_loss).backward()
+                scaler.step(self.optimizer_g)
+
+                # ============================================================
+                # 2. Train Discriminator
+                # ============================================================
+                with amp.autocast(self.device):
+                    # Real images
+                    real_logits = self.discriminator(x)
+                    d_real_loss = F.softplus(-real_logits).mean()
+
+                    # Fake images (detach so G is not updated)
+                    fake_logits = self.discriminator(recon.detach())
+                    d_fake_loss = F.softplus(fake_logits).mean()
+
+                    d_loss = d_real_loss + d_fake_loss
+
+                self.optimizer_d.zero_grad()
+                scaler.scale(d_loss).backward()
+                scaler.step(self.optimizer_d)
+
+                scaler.update()
+                self.global_step += 1
+
+                pbar.set_postfix({
+                    "G_loss": f"{g_loss.item():.4f}",
+                    "D_loss": f"{d_loss.item():.4f}",
+                    "charb": f"{logs['recon_charbonnier']:.4f}",
+                    "lpips": f"{logs['lpips']:.4f}",
+                })
+
+            # ---------------------------
+            # Logging
+            # ---------------------------
+            if (ep + 1) % self.args.log_every == 0:
+                self.save_reconstruction(num_samples=16)
+
+            # ---------------------------
+            # Save checkpoint
+            # ---------------------------
+            if (ep + 1) % self.args.save_every == 0:
+                ckpt_path = f"{self.args.out_dir}/checkpoints/vaegan_epoch_{self.epoch}.pt"
+                self.save_checkpoint(ckpt_path)
+
+            # ---------------------------
+            # Validation
+            # ---------------------------
+            if (ep + 1) % self.args.val_every == 0:
+                val_loss = self.validate()  # custom validate below
+                
+                if val_loss < self.best_val_loss:
+                    self.best_val_loss = val_loss
+                    best_path = f"{self.args.out_dir}/checkpoints/best_vaegan_epoch_{self.epoch}.pt"
+                    self.save_checkpoint(best_path)
+                    print(f"[BEST] Saved best model at: {best_path}")
+
+                    if self.push_to_hf_enabled:
+                        self.push_to_hf(best_path, repo_suffix="vaegan_model")
+
+        print("[VAE-GAN] Training complete!")
+
+    # ----------------------------------------------------------------
+    # Validation
+    # ----------------------------------------------------------------
+    @torch.no_grad()
+    def validate(self):
+        self.model.eval()
+
+        total_loss = 0
+        count = 0
+
+        for x in self.val_loader:
+            x = x.to(self.device)
+            recon, mu, logvar = self.model(x)
+
+            # no GAN during validation
+            recon_loss = F.mse_loss(recon, x)
+            kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            kl = kl / (x.size(0) * x.size(2) * x.size(3))
+            loss = recon_loss + self.args.kl_beta * kl
+
+            total_loss += loss.item() * x.size(0)
+            count += x.size(0)
+
+        avg_loss = total_loss / count
+        print(f"[VAL] Epoch {self.epoch} | val_loss={avg_loss:.4f}")
+
+        self.model.train()
+        return avg_loss

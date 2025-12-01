@@ -81,7 +81,13 @@ class AutoEncoder(nn.Module):
         h = self.encoder(x)  # (B, 2*z_ch, H', W')
         mu, logvar = torch.chunk(h, 2, dim=1)  # each (B, z_ch, H', W')
         return mu, logvar
-
+    
+    def encode_to_z(self, x):
+        """Return the sampled latent z from input x."""
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return z
+    
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5*logvar)
         # eps ~ N(0,1), std arg just for the shape not value

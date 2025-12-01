@@ -94,7 +94,7 @@ class VAETrainer(Trainer):
 
                 with amp.autocast(self.device):
                     recon, mu, logvar = self.model(x)
-                    loss, recon_loss, kl_loss = vae_loss_L2(recon, x, mu, logvar, beta=self.args.beta)
+                    loss, recon_loss, kl_loss = vae_loss_L2(recon, x, mu, logvar, beta=self.args.kl_beta)
 
                 self.optimizer.zero_grad()
                 scaler.scale(loss).backward()
@@ -158,7 +158,7 @@ class VAETrainer(Trainer):
 
                 recon, mu, logvar = self.model(x)
                 loss, recon_loss, kl_loss = vae_loss_L2(
-                    recon, x, mu, logvar, beta=self.args.beta
+                    recon, x, mu, logvar, beta=self.args.kl_beta
                 )
 
                 total_loss += loss.item() * x.size(0)
