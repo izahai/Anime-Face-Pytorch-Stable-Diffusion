@@ -6,9 +6,10 @@ def vae_loss_L2(recon, x, mu, logvar, beta=1e-6):
 
     # KL = -0.5 * sum(1 + logvar)
     kl = -0.5 * torch.sum(1+logvar - mu.pow(2) - logvar.exp())
-    kl = kl / (x.size(0) * x.size(2) * x.size(3))
+    kl = kl / x.numel()
 
     total_loss = recon_loss + beta*kl
+    print(x.shape)
     return total_loss, recon_loss, kl
 
 def charbonnier_loss(x, y, eps=1e-6):

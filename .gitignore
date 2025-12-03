@@ -8,3 +8,5 @@ utils/__pycache__
 *.png
 .env
 /ngynthhai/xet
+/misc/*
+genshin/images.zip

@@ -4,7 +4,7 @@ export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 VAE_CKPT="vae_logs/checkpoints/best_vae_epoch_56_v2.pt"
 UNET_CKPT="vae_logs/checkpoints/ldm_epoch_49.pt"
-OUT="vae_logs/samples/ldm_epoch_49.png"
+OUT="vae_logs/samples/hihi.png"
 
 # For generating a grid
 python tools/run_ldm.py \

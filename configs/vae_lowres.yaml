@@ -1,7 +1,7 @@
 # ========== DATA ==========
 dataset_name: splcher/animefacedataset
 metadata_name: metadata_lowres.jsonl
-image_size: 64
+image_size: 106
 
 # ========== MODEL ==========
 base_ch: 64
@@ -9,11 +9,11 @@ z_ch: 4
 factor: 4
 
 # ========== TRAINING ==========
-batch_size: 512
+batch_size: 16
 learning_rate: 1e-4
 num_epochs: 100
 kl_beta: 0.0005
-num_workers: 
+num_workers: 1
 
 out_dir: outputs/vae_lowres
 
