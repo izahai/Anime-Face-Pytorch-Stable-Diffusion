@@ -17,6 +17,9 @@ def download_anime_faces(
     elif dataset_name == "splcher/animefacedataset":
         sub_img_dir = "images"
         colab_cache = "animefacedataset"
+    elif dataset_name == "ngynhai/genshin-impact-face":
+        sub_img_dir = "images"
+        colab_cache = "genshin-impact-face"
     else:
         print("[Error]: Dataset name is invalid!")
         return 
