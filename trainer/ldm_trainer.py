@@ -46,10 +46,10 @@ class LatentDiffusionTrainer(Trainer):
     # Save sample images (sample from noise using model.sample)
     # ======================================================================
     @torch.no_grad()
-    def save_sample(self, num=4):
+    def save_sample(self, num=4, z_ch=4):
         self.model.eval()
 
-        z = self.model.sample(num_samples=num, device=self.device)
+        z = self.model.sample(num_samples=num, latent_shape=(z_ch, 16, 16), device=self.device)
         x = (z + 1) * 0.5  # de-normalize
 
         save_path = f"{self.args.out_dir}/samples/sample_epoch_{self.epoch}.png"
@@ -162,7 +162,7 @@ class LatentDiffusionTrainer(Trainer):
 
             # ─── Logging & Sample Generation ──────────────────────────────
             if (ep + 1) % self.args.log_every == 0:
-                self.save_sample(num=100)
+                self.save_sample(num=100, z_ch=self.args.z_ch)
 
             # ─── Save Checkpoint ───────────────────────────────────────────
             if (ep + 1) % self.args.save_every == 0:
