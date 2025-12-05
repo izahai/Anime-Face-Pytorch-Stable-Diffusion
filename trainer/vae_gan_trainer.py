@@ -65,6 +65,22 @@ class VAEGANTrainer(Trainer):
         self.lpips_model = self.lpips_model.to(self.device)
         self.lpips_model.eval()
 
+        g_total, g_trainable = self.count_params(self.model)
+        d_total, d_trainable = self.count_params(self.discriminator)
+
+        print("=" * 60)
+        print("[MODEL PARAMS]")
+        print(f"Generator (VAE):")
+        print(f"  Total params:     {g_total:,}")
+        print(f"  Trainable params: {g_trainable:,}")
+        print(f"Discriminator:")
+        print(f"  Total params:     {d_total:,}")
+        print(f"  Trainable params: {d_trainable:,}")
+        print(f"LPIPS:")
+        lp_total = sum(p.numel() for p in self.lpips_model.parameters())
+        print(f"  Total params:     {lp_total:,} (frozen)")
+        print("=" * 60)
+
     # ----------------------------------------------------------------
     # Save reconstructions (same as VAETrainer)
     # ----------------------------------------------------------------

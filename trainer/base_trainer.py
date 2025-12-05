@@ -64,6 +64,11 @@ class Trainer(ABC):
     def validate(self, *args, **kwargs):
         """Run validation, return at least val_loss."""
         raise NotImplementedError
+    
+    def count_params(model):
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        return total, trainable
 
     # ------------------------------------------------------------------
     # Checkpoint utilities
