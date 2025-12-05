@@ -53,7 +53,7 @@ class LatentDiffusionTrainer(Trainer):
         x = (z + 1) * 0.5  # de-normalize
 
         save_path = f"{self.args.out_dir}/samples/sample_epoch_{self.epoch}.png"
-        save_image(x, save_path, nrow=num)
+        save_image(x, save_path, nrow=int(num**0.5))
 
         print(f"[LDM] Saved samples: {save_path}")
         self.model.train()
