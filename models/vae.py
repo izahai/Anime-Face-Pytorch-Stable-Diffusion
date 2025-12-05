@@ -3,10 +3,10 @@
 import math
 import torch
 import torch.nn as nn
-from models.blocks import Conv, ResnetBlock, Downsample, Upsample
+from models.blocks import Conv, ResnetBlock, Downsample, Upsample, MultiHeadAttentionBlock
 
 class Encoder(nn.Module):
-    def __init__(self, in_ch=3, base_ch=64, z_ch=4, down_factor=4):
+    def __init__(self, in_ch=3, base_ch=64, z_ch=4, down_factor=4, num_head=4):
         super().__init__()
 
         assert down_factor in [2,4,8], "down_factor must be 2,4,8"
@@ -31,16 +31,18 @@ class Encoder(nn.Module):
         # (2z, H/factor, W/factor)
         # 2z: mean and log(var) -> sampling latent
         final_ch = base_ch * down_factor
+        self.attentions = MultiHeadAttentionBlock(final_ch, num_head)
         self.conv_out = Conv(final_ch, 2*z_ch, k=3, s=1, p=1) 
 
     def forward(self, x):
         h = self.conv_in(x)
         for blk in self.blocks:
             h = blk(h)
+        h = self.attentions(h)
         return self.conv_out(h)
 
 class Decoder(nn.Module):
-    def __init__(self, out_ch=3, base_ch=64, z_ch=4, up_factor=4):
+    def __init__(self, out_ch=3, base_ch=64, z_ch=4, up_factor=4, num_head=4):
         super().__init__()
 
         assert up_factor in [2,4,8], "up_factor must be 2,4,8"
@@ -48,6 +50,8 @@ class Decoder(nn.Module):
 
         ch = base_ch * up_factor
         self.conv_in = Conv(z_ch, ch)
+
+        self.attentions = MultiHeadAttentionBlock(ch, num_head=num_head)
 
         self.blocks = nn.ModuleList()
         
@@ -67,6 +71,7 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         h = self.conv_in(x)
+        h = self.attentions(h)
         for blk in self.blocks:
             h = blk(h)
         return self.conv_out(h)

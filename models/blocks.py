@@ -126,3 +126,40 @@ class AttentionBlock(nn.Module):
         # (B,HW,C) -> (B,C,HW) -> (B,C,H,W)
         out = out.transpose(1,2).reshape(b, c, h_, w_)
         return x + self.proj(out)
+    
+class MultiHeadAttentionBlock(nn.Module):
+    def __init__(self, ch, num_head=8):
+        super.__init__()
+        assert ch % num_head == 0, "channels must be divisible by num_head"
+
+        self.norm =nn.GroupNorm(32, ch)
+        self.num_head = num_head
+        self.head_dim = ch // num_head
+        self.scale = self.head_dim ** -0.5
+
+        self.to_q = Conv(ch, ch, k=1, s=1, p=0)
+        self.to_k = Conv(ch, ch, k=1, s=1, p=0)
+        self.to_v = Conv(ch, ch, k=1, s=1, p=0)
+        self.to_out = Conv(ch, ch, k=1, s=1, p=0)
+
+    def forward(self, x):
+        b, c, h, w, = x.shape
+
+        x_norm = self.norm(x)
+
+        q = self.to_q(x_norm)
+        k = self.to_k(x_norm)
+        v = self.to_v(x_norm)
+
+        # (B, C, H, W) -> (B, num_head, HW, head_dim)
+        q = q.view(b, self.num_head, self.head_dim, h*w).transpose(2, 3)
+        k = k.view(b, self.num_head, self.head_dim, h*w)
+        v = v.view(b, self.num_head, self.head_dim, h*w).transpose(2, 3)
+
+        attn = (q @ k) * self.scale # (B, num_head, HW, HW)
+        attn = torch.softmax(attn, dim=-1)
+
+        out = attn @ v
+        out = out.transpose(2, 3).contiuous().view(b,c,h,w)
+
+        return x + self.to_out(out)

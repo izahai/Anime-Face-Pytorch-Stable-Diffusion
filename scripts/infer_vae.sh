@@ -2,8 +2,8 @@
 
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
-CKPT="vae_logs/checkpoints/best_vae_epoch_56_v2.pt"
-OUT="vae_logs/samples/recon.png"
+CKPT="vae_logs/checkpoints/genshin_96.pt"
+OUT="vae_logs/samples/vae_genshin.png"
 
 # For generating a grid
 # python tools/run_vae.py \
@@ -16,9 +16,9 @@ OUT="vae_logs/samples/recon.png"
 python tools/run_vae.py \
     --ckpt $CKPT \
     --recon \
-    --input_folder data/images \
-    --recon_n 20 \
-    --nrow 5 \
+    --input_folder genshin/images \
+    --recon_n 70 \
+    --nrow 10 \
     --out $OUT
 
 
