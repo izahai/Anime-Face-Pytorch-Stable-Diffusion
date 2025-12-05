@@ -266,6 +266,9 @@ class VAEGANTrainer(Trainer):
             total_kl += kl.item()
             count += 1
 
+            if self.args.test_pipeline == True:
+                break
+
         avg_loss = total_loss / count
         avg_recon_loss = total_recon / count
         avg_kl = total_kl / count
@@ -330,6 +333,19 @@ class VAEGANTrainer(Trainer):
         print("=" * 90 + "\n")
 
     def save_losses_to_json(self, train_losses, val_losses=None):
+        def sanitize(d):
+            clean = {}
+            for k, v in d.items():
+                if torch.is_tensor(v):
+                    clean[k] = v.item()  # ✅ convert tensor → float
+                else:
+                    clean[k] = float(v)  # ✅ ensure pure Python scalar
+            return clean
+
+        train_losses = sanitize(train_losses)
+        if val_losses is not None:
+            val_losses = sanitize(val_losses)
+
         with open(self.loss_log_path, "r") as f:
             data = json.load(f)
 
@@ -340,6 +356,7 @@ class VAEGANTrainer(Trainer):
 
         with open(self.loss_log_path, "w") as f:
             json.dump(data, f, indent=4)
+
 
 
         
