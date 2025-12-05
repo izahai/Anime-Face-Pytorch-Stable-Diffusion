@@ -99,7 +99,7 @@ class VAEGANTrainer(Trainer):
         if resume_path:
             self.load_checkpoint(resume_path)  # inherited from base class
 
-        scaler = amp.GradScaler(self.device)
+        scaler = amp.GradScaler(enabled=(self.device.type == "cuda"))
 
         for ep in range(self.epoch, self.args.num_epochs):
             self.epoch = ep
@@ -111,7 +111,7 @@ class VAEGANTrainer(Trainer):
                 # ============================================================
                 # 1. Train Generator (VAE)
                 # ============================================================
-                with amp.autocast(self.device):
+                with amp.autocast(device_type=self.device.type):
                     recon, mu, logvar = self.model(x)
 
                     disc_fake = self.discriminator(recon)
@@ -136,7 +136,7 @@ class VAEGANTrainer(Trainer):
                 # ============================================================
                 # 2. Train Discriminator
                 # ============================================================
-                with amp.autocast(self.device):
+                with amp.autocast(device_type=self.device.type):
                     # Real images
                     real_logits = self.discriminator(x)
                     d_real_loss = F.softplus(-real_logits).mean()

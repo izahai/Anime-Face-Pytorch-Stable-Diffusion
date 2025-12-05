@@ -151,7 +151,7 @@ class LatentDiffusionTrainer:
         if resume_path:
             self.load_checkpoint(resume_path)
 
-        scaler = amp.GradScaler(device=self.device)
+        scaler = amp.GradScaler(enabled=(self.device.type == "cuda"))
 
         for ep in range(self.epoch, self.args.num_epochs):
             self.epoch = ep
@@ -161,7 +161,7 @@ class LatentDiffusionTrainer:
             for imgs in pbar:
                 imgs = imgs.to(self.device)
 
-                with amp.autocast(device_type=self.device):
+                with amp.autocast(device_type=self.device.type):
                     loss, pred_noise, true_noise, t = self.model(imgs)
 
                 self.optimizer.zero_grad()

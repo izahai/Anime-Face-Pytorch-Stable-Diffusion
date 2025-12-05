@@ -26,7 +26,7 @@ class Trainer(ABC):
 
     def __init__(self, args, train_loader, val_loader):
         self.args = args
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Dataloaders
         self.train_loader = train_loader
