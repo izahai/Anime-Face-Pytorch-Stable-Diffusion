@@ -7,18 +7,23 @@ import os
 from torchvision.utils import save_image
 from models.vae import AutoEncoder
 
-def load_vae(ckpt_path, image_size=64, z_ch=4, base_ch=64, device=None):
+def load_vae(ckpt_path, image_size=64, z_ch=4, base_ch=64, num_head=4, device=None):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
     model = AutoEncoder(
         in_ch=3,
         base_ch=base_ch,
         z_ch=z_ch,
+        num_head=num_head
     ).to(device)
 
     state = torch.load(ckpt_path, map_location=device)
-    if "model" in state:
+    if "vae" in state:
+        state = state["vae"]
+    elif "model" in state:
         state = state["model"]
+    elif "state_dict" in state:
+        state = state["state_dict"]
     model.load_state_dict(state)
     model.eval()
 
@@ -146,6 +151,9 @@ def parse_args():
     parser.add_argument("--base_ch", type=int, default=64,
                         help="Base channel count of the VAE")
     
+    parser.add_argument("--num_head", type=int, default=8,
+                        help="Num head count of the VAE")
+    
     parser.add_argument("--recon", action="store_true",
                     help="Run random reconstruction mode")
 
@@ -166,6 +174,7 @@ if __name__ == '__main__':
         image_size=args.image_size,
         z_ch=args.z_ch,
         base_ch=args.base_ch,
+        num_head=args.num_head,
         device=None
     )
 
@@ -177,7 +186,7 @@ if __name__ == '__main__':
             model=model,
             folder=args.input_folder,
             image_size=args.image_size,
-            recon_n=args.recon_n,
+            recon_n=args.n,
             nrow=args.nrow,
             out_path=args.out
         )

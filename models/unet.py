@@ -6,11 +6,12 @@ import torch.nn.functional as F
 
 from models.blocks import (
     Conv, ResnetBlock, AttentionBlock,
-    Downsample, Upsample, SinusoidalPosEmb
+    Downsample, Upsample, SinusoidalPosEmb,
+    MultiHeadAttentionBlock
 )
    
 class UNet(nn.Module):
-    def __init__(self, in_ch=4, base_ch=64, ch_mult=(1,2,4), t_dim=256):
+    def __init__(self, in_ch=4, base_ch=64, ch_mult=(1,2,4), t_dim=256, num_head=4):
         super().__init__()
 
         self.ch_mult = ch_mult
@@ -46,7 +47,7 @@ class UNet(nn.Module):
         ch = self.down_channels[-1]
         self.mid_blocks = nn.ModuleDict({
             "mid_resblock_0": ResnetBlock(ch, ch, t_dim=t_dim),
-            "mid_attn": AttentionBlock(ch),
+            "mid_attn": MultiHeadAttentionBlock(ch, num_head=num_head),
             "mid_resblock_1": ResnetBlock(ch, ch, t_dim=t_dim),
         })
 

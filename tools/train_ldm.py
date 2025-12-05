@@ -27,8 +27,8 @@ def main():
     train_loader, val_loader = build_dataloaders(args)
 
     # Model
-    unet = UNet()
-    vae = AutoEncoder()
+    unet = UNet(in_ch=args.z_ch, base_ch=args.base_ch, num_head=args.num_head)
+    vae = AutoEncoder(base_ch=args.base_ch, z_ch=args.z_ch, num_head=args.num_head)
     scheduler = DDPMScheduler()
 
     model = LatentDiffusion(unet, vae, scheduler)

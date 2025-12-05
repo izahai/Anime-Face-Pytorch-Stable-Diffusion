@@ -4,9 +4,10 @@ metadata_path: data/metadata.jsonl
 image_size: 64
 
 # ========== MODEL ==========
-pretrained_vae: epoch49.pt
-base_ch: 64
-z_ch: 4
+pretrained_vae: epoch24.pt
+base_ch: 128
+z_ch: 8
+num_head: 8
 
 # ========== TRAINING ==========
 batch_size: 32
