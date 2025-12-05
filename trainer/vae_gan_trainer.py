@@ -196,6 +196,9 @@ class VAEGANTrainer(Trainer):
                     "kl": f"{logs['kl']:.4f}"
                 })
 
+                if self.args.test_pipeline == True:
+                    break
+
             # ---------------------------
             # Logging
             # ---------------------------
