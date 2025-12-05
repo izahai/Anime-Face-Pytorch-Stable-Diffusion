@@ -5,7 +5,7 @@ image_size: 64
 
 # ========== MODEL ==========
 base_ch: 128
-disc_ch: 128
+disc_ch: 64
 z_ch: 8
 factor: 4
 num_head: 8
@@ -30,7 +30,7 @@ out_dir: outputs/vae_gan
 
 # Logging & checkpoints
 log_every: 1
-save_every: 5
+save_every: 10
 val_every: 1
 
 push_to_hf: True
