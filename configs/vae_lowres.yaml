@@ -1,7 +1,7 @@
 # ========== DATA ==========
 dataset_name: splcher/animefacedataset
 metadata_name: metadata_lowres.jsonl
-image_size: 106
+image_size: 64
 
 # ========== MODEL ==========
 base_ch: 64

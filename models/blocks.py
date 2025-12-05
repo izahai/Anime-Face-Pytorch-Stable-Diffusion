@@ -129,7 +129,7 @@ class AttentionBlock(nn.Module):
     
 class MultiHeadAttentionBlock(nn.Module):
     def __init__(self, ch, num_head=8):
-        super.__init__()
+        super().__init__()
         assert ch % num_head == 0, "channels must be divisible by num_head"
 
         self.norm =nn.GroupNorm(32, ch)

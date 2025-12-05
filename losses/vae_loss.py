@@ -24,7 +24,7 @@ def vae_gan_lpips_charbonnier_loss(
     l_lpips = lpips_model(recon, x).mean()
 
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    kl = kl / (x.size(0) * x.size(2) * x.size(3))
+    kl = kl / x.numel()
 
     l_gan = F.softplus(-disc_fake).mean() 
 

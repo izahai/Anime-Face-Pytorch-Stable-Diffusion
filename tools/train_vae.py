@@ -1,6 +1,7 @@
 import argparse
 
 from trainer.vae_trainer import VAETrainer
+from trainer.vae_gan_trainer import VAEGANTrainer
 from data.download_anime_faces import download_anime_faces
 from tools.utils import load_yaml, merge_args_with_yaml, build_dataloaders
 
@@ -28,7 +29,10 @@ def main():
     train_loader, val_loader = build_dataloaders(args, image_dir, meta_path)
 
     # Train
-    trainer = VAETrainer(args, train_loader, val_loader)
+    if args.architecture == "vae-gan" :
+        trainer = VAEGANTrainer(args, train_loader, val_loader)
+    else:
+        trainer = VAETrainer(args, train_loader, val_loader)
     trainer.train(resume_path=args.resume)
 
 if __name__ == "__main__":

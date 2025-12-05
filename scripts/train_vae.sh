@@ -2,4 +2,4 @@
 
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
-python tools/train_vae.py --config configs/vae_lowres.yaml
+python tools/train_vae.py --config configs/vae_gan.yaml

@@ -77,10 +77,10 @@ class Decoder(nn.Module):
         return self.conv_out(h)
 
 class AutoEncoder(nn.Module):
-    def __init__(self, in_ch=3, base_ch=64, z_ch=4, factor=4):
+    def __init__(self, in_ch=3, base_ch=64, z_ch=4, factor=4, num_head=4):
         super().__init__()
-        self.encoder = Encoder(in_ch, base_ch, z_ch, factor)
-        self.decoder = Decoder(in_ch, base_ch, z_ch, factor)
+        self.encoder = Encoder(in_ch, base_ch, z_ch, factor, num_head)
+        self.decoder = Decoder(in_ch, base_ch, z_ch, factor, num_head)
 
     def encode(self, x):
         h = self.encoder(x)  # (B, 2*z_ch, H', W')

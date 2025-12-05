@@ -10,6 +10,7 @@ from trainer.base_trainer import Trainer
 from models.vae import AutoEncoder
 from models.discriminator import Discriminator
 from losses.vae_loss import vae_gan_lpips_charbonnier_loss
+import lpips
 
 
 class VAEGANTrainer(Trainer):
@@ -30,6 +31,7 @@ class VAEGANTrainer(Trainer):
             base_ch=args.base_ch,
             z_ch=args.z_ch,
             factor=args.factor,
+            num_head=args.num_head,
         ).to(self.device)
 
         self.optimizer_g = torch.optim.Adam(
@@ -55,6 +57,9 @@ class VAEGANTrainer(Trainer):
         # -------------------------
         # LPIPS
         # -------------------------
+        self.lpips_model = lpips_model
+        if self.lpips_model==None:
+            self.lpips_model = lpips.LPIPS(net="vgg")
         self.lpips_model = lpips_model.to(self.device)
         self.lpips_model.eval()
 
