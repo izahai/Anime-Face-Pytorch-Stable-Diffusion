@@ -18,7 +18,7 @@ w_lpips: 1.0
 w_gan: 0.1
 
 # ========== TRAINING & OPTIMIZER ==========
-batch_size: 256
+batch_size: 128
 learning_rate: 1e-4
 d_lr_scale: 1.0
 num_epochs: 100
@@ -33,5 +33,5 @@ log_every: 1
 save_every: 5
 val_every: 1
 
-push_to_hf: False
-test_pipeline: False
+push_to_hf: True
+test_pipeline: True
