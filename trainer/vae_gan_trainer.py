@@ -238,7 +238,7 @@ class VAEGANTrainer(Trainer):
     
     def _build_state_dict(self):
         return {
-            "vae": self.vae.state_dict(),
+            "vae": self.model.state_dict(),
             "discriminator": self.discriminator.state_dict(),
             "g_optimizer": self.g_optimizer.state_dict(),
             "d_optimizer": self.d_optimizer.state_dict(),
