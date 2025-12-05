@@ -235,7 +235,7 @@ class VAEGANTrainer(Trainer):
                     print(f"[BEST] Saved best model at: {best_path}")
 
                     if self.push_to_hf_enabled:
-                        self.push_to_hf(best_path, repo_suffix="vaegan_model")
+                        self.push_to_hf(best_path, repo_suffix="vae-gan-128ch-8z")
 
         print("[VAE-GAN] Training complete!")
 

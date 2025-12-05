@@ -2,24 +2,16 @@
 
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
-CKPT="vae_logs/checkpoints/genshin_96.pt"
-OUT="vae_logs/samples/vae_genshin.png"
+CKPT="vae_logs/checkpoints/epoch49.pt"
+OUT="vae_logs/samples/epoch49.png"
 
-# For generating a grid
-# python tools/run_vae.py \
-#     --ckpt $CKPT \
-#     --out $OUT \
-#     --grid \
-#     --n 10 \
-#     --nrow 5
-
+#For generating a grid
 python tools/run_vae.py \
     --ckpt $CKPT \
-    --recon \
-    --input_folder genshin/images \
-    --recon_n 70 \
-    --nrow 10 \
-    --out $OUT
+    --out $OUT \
+    --grid \
+    --n 100 \
+    --nrow 10
 
 
 echo "Sampling complete: saved to $OUT"

@@ -138,3 +138,19 @@ class Trainer(ABC):
         )
 
         print(f"[HF] Uploaded to https://huggingface.co/{repo_id}")
+
+        loss_json_path = os.path.join(self.args.out_dir, "logs", "losses.json")
+
+        if os.path.exists(loss_json_path):
+            print(f"[HF] Uploading losses.json...")
+
+            api.upload_file(
+                path_or_fileobj=loss_json_path,
+                path_in_repo="losses.json",
+                repo_id=repo_id,
+                repo_type="model",
+                commit_message=f"Update losses at epoch {self.epoch}",
+            )
+            print(f"[HF] Uploaded losses.json ✅")
+        else:
+            print("[HF] losses.json not found, skipping.")

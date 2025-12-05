@@ -4,11 +4,11 @@ metadata_name: metadata_lowres.jsonl
 image_size: 64
 
 # ========== MODEL ==========
-base_ch: 64
-disc_ch: 64
-z_ch: 4
+base_ch: 128
+disc_ch: 128
+z_ch: 8
 factor: 4
-num_head: 4
+num_head: 8
 architecture: vae-gan
 
 # ========== LOSS ==========
