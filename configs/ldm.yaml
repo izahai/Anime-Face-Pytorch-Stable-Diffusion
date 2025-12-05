@@ -1,7 +1,6 @@
 # ========== DATA ==========
-image_folder: data/images
 dataset_name: splcher/animefacedataset
-metadata_path: data/metadata.jsonl
+metadata_name: metadata_lowres.jsonl
 image_size: 64
 
 # ========== MODEL ==========
