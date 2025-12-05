@@ -327,7 +327,7 @@ class VAEGANTrainer(Trainer):
         print(
             f"VAL | "
             f"Total: {avg_loss:.6f} | "
-            f"Recon: {avg_recon_loss:.6f}"
+            f"Recon: {avg_recon_loss:.6f} | "
             f"KL: {avg_kl:.6f}"
         )
         print("=" * 90 + "\n")
