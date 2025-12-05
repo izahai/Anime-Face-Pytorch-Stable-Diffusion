@@ -8,26 +8,13 @@ from tqdm import tqdm
 from huggingface_hub import HfApi
 from dotenv import load_dotenv
 
+from trainer.base_trainer import Trainer
+
 load_dotenv()
 
-class LatentDiffusionTrainer:
+class LatentDiffusionTrainer(Trainer):
     def __init__(self, args, train_loader, val_loader, model=None):
-        self.args = args
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        # ─── Directory Setup ─────────────────────────────────────
-        os.makedirs(os.path.join(args.out_dir, "samples"), exist_ok=True)
-        os.makedirs(os.path.join(args.out_dir, "checkpoints"), exist_ok=True)
-
-        # ─── HuggingFace Push Config ─────────────────────────────
-        self.push_to_hf_enabled = getattr(args, "push_to_hf", False)
-        if self.push_to_hf_enabled:
-            self.hf_username = os.getenv("HF_USERNAME", "")
-            self.hf_token = os.getenv("HF_TOKEN")
-
-        self.train_loader = train_loader
-        self.val_loader = val_loader
-
+        super().__init__(args, train_loader, val_loader)
 
         # ─── Model & Optimizer ───────────────────────────────────
         self.model = model.to(self.device)
@@ -37,9 +24,14 @@ class LatentDiffusionTrainer:
             vae_ckpt = torch.load(args.pretrained_vae, map_location=self.device)
 
             # allow both "model" key or raw state dict
-            state_dict = vae_ckpt.get("model", vae_ckpt)
+            if "vae" in vae_ckpt:
+                state_dict = vae_ckpt["vae"]
+            elif "model" in vae_ckpt:
+                state_dict = vae_ckpt["model"]
+            else:
+                state_dict = vae_ckpt
 
-            self.model.vae.load_state_dict(state_dict)
+            self.model.vae.load_state_dict(state_dict, strict=True)
             print("[LDM] Pretrained VAE loaded successfully!")
 
         for p in self.model.vae.parameters():
@@ -50,19 +42,14 @@ class LatentDiffusionTrainer:
             lr=args.learning_rate
         )
 
-        # Training state
-        self.epoch = 0
-        self.global_step = 0
-        self.best_val_loss = float("inf")
-
     # ======================================================================
     # Save sample images (sample from noise using model.sample)
     # ======================================================================
     @torch.no_grad()
-    def save_sample(self, num=4):
+    def save_sample(self, num=4, z_ch=4):
         self.model.eval()
 
-        z = self.model.sample(num_samples=num, device=self.device)
+        z = self.model.sample(num_samples=num, latent_shape=(z_ch, 16, 16), device=self.device)
         x = (z + 1) * 0.5  # de-normalize
 
         save_path = f"{self.args.out_dir}/samples/sample_epoch_{self.epoch}.png"
@@ -151,7 +138,7 @@ class LatentDiffusionTrainer:
         if resume_path:
             self.load_checkpoint(resume_path)
 
-        scaler = amp.GradScaler(device=self.device)
+        scaler = amp.GradScaler(enabled=(self.device.type == "cuda"))
 
         for ep in range(self.epoch, self.args.num_epochs):
             self.epoch = ep
@@ -161,7 +148,7 @@ class LatentDiffusionTrainer:
             for imgs in pbar:
                 imgs = imgs.to(self.device)
 
-                with amp.autocast(device_type=self.device):
+                with amp.autocast(device_type=self.device.type):
                     loss, pred_noise, true_noise, t = self.model(imgs)
 
                 self.optimizer.zero_grad()
@@ -175,7 +162,7 @@ class LatentDiffusionTrainer:
 
             # ─── Logging & Sample Generation ──────────────────────────────
             if (ep + 1) % self.args.log_every == 0:
-                self.save_sample(num=4)
+                self.save_sample(num=100, z_ch=self.args.z_ch)
 
             # ─── Save Checkpoint ───────────────────────────────────────────
             if (ep + 1) % self.args.save_every == 0:

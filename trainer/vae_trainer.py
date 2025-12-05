@@ -79,7 +79,7 @@ class VAETrainer(Trainer):
         if resume_path:
             self.load_checkpoint(resume_path)
 
-        scaler = amp.GradScaler(self.device)
+        scaler = amp.GradScaler(enabled=(self.device.type == "cuda"))
 
         for ep in range(self.epoch, self.args.num_epochs):
             self.epoch = ep
@@ -92,7 +92,7 @@ class VAETrainer(Trainer):
             for x in pbar:
                 x = x.to(self.device)
 
-                with amp.autocast(self.device):
+                with amp.autocast(device_type=self.device.type):
                     recon, mu, logvar = self.model(x)
                     loss, recon_loss, kl_loss = vae_loss_L2(recon, x, mu, logvar, beta=self.args.kl_beta)
 

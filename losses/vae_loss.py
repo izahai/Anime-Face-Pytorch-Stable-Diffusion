@@ -36,8 +36,9 @@ def vae_gan_lpips_charbonnier_loss(
     )
 
     return total_loss, {
-        "recon_charbonnier": l_charb,
+        "g": total_loss,
+        "d": l_gan,
+        "recon": l_charb,
         "lpips": l_lpips,
-        "gan": l_gan,
-        "kl": kl,
+        "kl": beta_kl*kl,
     }

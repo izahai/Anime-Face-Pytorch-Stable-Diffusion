@@ -1,17 +1,18 @@
 # ========== DATA ==========
-image_folder: data/images
-metadata_path: data/metadata.jsonl
+dataset_name: splcher/animefacedataset
+metadata_name: metadata_lowres.jsonl
 image_size: 64
 
 # ========== MODEL ==========
-pretrained_vae: epoch49.pt
-base_ch: 64
-z_ch: 4
+pretrained_vae: epoch24.pt
+base_ch: 128
+z_ch: 8
+num_head: 8
 
 # ========== TRAINING ==========
-batch_size: 32
+batch_size: 128
 learning_rate: 1e-4
-num_epochs: 50
+num_epochs: 100
 kl_beta: 0.0005
 num_workers: 2
 
@@ -22,4 +23,4 @@ log_every: 1
 save_every: 5
 val_every: 1
 
-push_to_hf: False
+push_to_hf: True

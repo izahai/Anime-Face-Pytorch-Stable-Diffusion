@@ -26,7 +26,7 @@ class Trainer(ABC):
 
     def __init__(self, args, train_loader, val_loader):
         self.args = args
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Dataloaders
         self.train_loader = train_loader
@@ -64,6 +64,11 @@ class Trainer(ABC):
     def validate(self, *args, **kwargs):
         """Run validation, return at least val_loss."""
         raise NotImplementedError
+    
+    def count_params(self, model):
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        return total, trainable
 
     # ------------------------------------------------------------------
     # Checkpoint utilities
@@ -133,3 +138,19 @@ class Trainer(ABC):
         )
 
         print(f"[HF] Uploaded to https://huggingface.co/{repo_id}")
+
+        loss_json_path = os.path.join(self.args.out_dir, "logs", "losses.json")
+
+        if os.path.exists(loss_json_path):
+            print(f"[HF] Uploading losses.json...")
+
+            api.upload_file(
+                path_or_fileobj=loss_json_path,
+                path_in_repo="losses.json",
+                repo_id=repo_id,
+                repo_type="model",
+                commit_message=f"Update losses at epoch {self.epoch}",
+            )
+            print(f"[HF] Uploaded losses.json ✅")
+        else:
+            print("[HF] losses.json not found, skipping.")

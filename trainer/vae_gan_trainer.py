@@ -5,11 +5,13 @@ import torch.nn.functional as F
 from torch import amp
 from tqdm import tqdm
 from torchvision.utils import save_image, make_grid
+import os
+import json
 
 from trainer.base_trainer import Trainer
 from models.vae import AutoEncoder
 from models.discriminator import Discriminator
-from losses.vae_loss import vae_gan_lpips_charbonnier_loss
+from losses.vae_loss import vae_gan_lpips_charbonnier_loss, charbonnier_loss
 import lpips
 
 
@@ -26,7 +28,7 @@ class VAEGANTrainer(Trainer):
         # -------------------------
         # Setup Generator (VAE)
         # -------------------------
-        self.model = model or AutoEncoder(
+        self.vae = model or AutoEncoder(
             in_ch=3,
             base_ch=args.base_ch,
             z_ch=args.z_ch,
@@ -35,7 +37,7 @@ class VAEGANTrainer(Trainer):
         ).to(self.device)
 
         self.optimizer_g = torch.optim.Adam(
-            self.model.parameters(),
+            self.vae.parameters(),
             lr=args.learning_rate,
             betas=(args.adam_beta1, args.adam_beta2),
         )
@@ -57,17 +59,50 @@ class VAEGANTrainer(Trainer):
         # -------------------------
         # LPIPS
         # -------------------------
-        self.lpips_model = lpips_model
-        if self.lpips_model==None:
+        if lpips_model is None:
             self.lpips_model = lpips.LPIPS(net="vgg")
-        self.lpips_model = lpips_model.to(self.device)
+        else:
+            self.lpips_model = lpips_model
+
+        self.lpips_model = self.lpips_model.to(self.device)
         self.lpips_model.eval()
+
+        g_total, g_trainable = self.count_params(self.vae)
+        d_total, d_trainable = self.count_params(self.discriminator)
+
+        self.loss_meter = {
+            "g": 0.0,
+            "d": 0.0,
+            "recon": 0.0,
+            "lpips": 0.0,
+            "kl": 0.0,
+            "steps": 0,
+        }
+        self.loss_log_path = os.path.join(self.args.out_dir, "logs", "losses.json")
+        os.makedirs(os.path.dirname(self.loss_log_path), exist_ok=True)
+
+        if not os.path.exists(self.loss_log_path):
+            with open(self.loss_log_path, "w") as f:
+                json.dump({}, f, indent=4)
+
+        print("=" * 60)
+        print("[MODEL PARAMS]")
+        print(f"Generator (VAE):")
+        print(f"  Total params:     {g_total:,}")
+        print(f"  Trainable params: {g_trainable:,}")
+        print(f"Discriminator:")
+        print(f"  Total params:     {d_total:,}")
+        print(f"  Trainable params: {d_trainable:,}")
+        print(f"LPIPS:")
+        lp_total = sum(p.numel() for p in self.lpips_model.parameters())
+        print(f"  Total params:     {lp_total:,} (frozen)")
+        print("=" * 60)
 
     # ----------------------------------------------------------------
     # Save reconstructions (same as VAETrainer)
     # ----------------------------------------------------------------
     def save_reconstruction(self, x=None, num_samples=8, nrow=None):
-        self.model.eval()
+        self.vae.eval()
 
         if x is None:
             for batch in self.train_loader:
@@ -76,7 +111,7 @@ class VAEGANTrainer(Trainer):
 
         x = x[:num_samples]
         with torch.no_grad():
-            recon, _, _ = self.model(x)
+            recon, _, _ = self.vae(x)
 
         x_vis = (x + 1) * 0.5
         recon_vis = (recon + 1) * 0.5
@@ -88,7 +123,7 @@ class VAEGANTrainer(Trainer):
         save_image(grid, save_path)
         print(f"[SAMPLE] Saved reconstruction: {save_path}")
 
-        self.model.train()
+        self.vae.train()
 
     # ----------------------------------------------------------------
     # Training Loop
@@ -97,7 +132,7 @@ class VAEGANTrainer(Trainer):
         if resume_path:
             self.load_checkpoint(resume_path)  # inherited from base class
 
-        scaler = amp.GradScaler(self.device)
+        scaler = amp.GradScaler(enabled=(self.device.type == "cuda"))
 
         for ep in range(self.epoch, self.args.num_epochs):
             self.epoch = ep
@@ -109,8 +144,8 @@ class VAEGANTrainer(Trainer):
                 # ============================================================
                 # 1. Train Generator (VAE)
                 # ============================================================
-                with amp.autocast(self.device):
-                    recon, mu, logvar = self.model(x)
+                with amp.autocast(device_type=self.device.type):
+                    recon, mu, logvar = self.vae(x)
 
                     disc_fake = self.discriminator(recon)
 
@@ -134,7 +169,7 @@ class VAEGANTrainer(Trainer):
                 # ============================================================
                 # 2. Train Discriminator
                 # ============================================================
-                with amp.autocast(self.device):
+                with amp.autocast(device_type=self.device.type):
                     # Real images
                     real_logits = self.discriminator(x)
                     d_real_loss = F.softplus(-real_logits).mean()
@@ -151,13 +186,18 @@ class VAEGANTrainer(Trainer):
 
                 scaler.update()
                 self.global_step += 1
+                self.accum_loss(logs)
 
                 pbar.set_postfix({
-                    "G_loss": f"{g_loss.item():.4f}",
-                    "D_loss": f"{d_loss.item():.4f}",
-                    "charb": f"{logs['recon_charbonnier']:.4f}",
+                    "G_loss": f"{logs["g"]:.4f}",
+                    "D_loss": f"{logs["d"]:.4f}",
+                    "recon": f"{logs['recon']:.4f}",
                     "lpips": f"{logs['lpips']:.4f}",
+                    "kl": f"{logs['kl']:.4f}"
                 })
+
+                if self.args.test_pipeline == True:
+                    break
 
             # ---------------------------
             # Logging
@@ -176,16 +216,26 @@ class VAEGANTrainer(Trainer):
             # Validation
             # ---------------------------
             if (ep + 1) % self.args.val_every == 0:
-                val_loss = self.validate()  # custom validate below
+                avg_val_loss, avg_recon, avg_kl_loss = self.validate()  # custom validate below
+                train_losses = self.log_train_loss()
+                self.log_val_loss(avg_val_loss, avg_recon, avg_kl_loss)
+
+                val_losses = {
+                    "total": avg_val_loss,
+                    "recon": avg_recon,
+                    "kl": avg_kl_loss,
+                }
+
+                self.save_losses_to_json(train_losses, val_losses)
                 
-                if val_loss < self.best_val_loss:
-                    self.best_val_loss = val_loss
+                if avg_val_loss < self.best_val_loss:
+                    self.best_val_loss = avg_val_loss
                     best_path = f"{self.args.out_dir}/checkpoints/best_vaegan_epoch_{self.epoch}.pt"
                     self.save_checkpoint(best_path)
                     print(f"[BEST] Saved best model at: {best_path}")
 
                     if self.push_to_hf_enabled:
-                        self.push_to_hf(best_path, repo_suffix="vaegan_model")
+                        self.push_to_hf(best_path, repo_suffix="vae-gan-128ch-8z")
 
         print("[VAE-GAN] Training complete!")
 
@@ -194,26 +244,121 @@ class VAEGANTrainer(Trainer):
     # ----------------------------------------------------------------
     @torch.no_grad()
     def validate(self):
-        self.model.eval()
+        self.vae.eval()
 
         total_loss = 0
+        total_recon = 0
+        total_kl = 0
         count = 0
 
         for x in self.val_loader:
             x = x.to(self.device)
-            recon, mu, logvar = self.model(x)
+            recon, mu, logvar = self.vae(x)
 
             # no GAN during validation
-            recon_loss = F.mse_loss(recon, x)
+            recon_loss = charbonnier_loss(recon, x)
             kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-            kl = kl / (x.size(0) * x.size(2) * x.size(3))
-            loss = recon_loss + self.args.kl_beta * kl
+            kl = self.args.kl_beta * kl / x.numel()
+            loss = recon_loss + kl
 
-            total_loss += loss.item() * x.size(0)
-            count += x.size(0)
+            total_loss += loss.item()
+            total_recon += recon_loss.item()
+            total_kl += kl.item()
+            count += 1
+
+            if self.args.test_pipeline == True:
+                break
 
         avg_loss = total_loss / count
-        print(f"[VAL] Epoch {self.epoch} | val_loss={avg_loss:.4f}")
+        avg_recon_loss = total_recon / count
+        avg_kl = total_kl / count
 
-        self.model.train()
-        return avg_loss
+        self.vae.train()
+        return avg_loss, avg_recon_loss, avg_kl
+    
+    def accum_loss(self, logs):
+        self.loss_meter["g"] += logs["g"]
+        self.loss_meter["d"] += logs["d"]
+        self.loss_meter["recon"] += logs["recon"]
+        self.loss_meter["lpips"] += logs["lpips"]
+        self.loss_meter["kl"] += logs["kl"]
+        self.loss_meter["steps"] += 1
+
+    
+    def _build_state_dict(self):
+        return {
+            "vae": self.vae.state_dict(),
+            "discriminator": self.discriminator.state_dict(),
+            "optimizer_g": self.optimizer_g.state_dict(),
+            "optimizer_d": self.optimizer_d.state_dict(),
+            "epoch": self.epoch,
+        }
+    
+    def log_train_loss(self):
+        meter = self.loss_meter
+        avg_meter = {k: v / max(meter["steps"], 1) for k, v in meter.items()}
+        print("\n" + "=" * 90)
+        print(f"🟢 EPOCH {self.epoch} SUMMARY")
+        print("-" * 90)
+        print(
+            f"TRAIN | "
+            f"G: {avg_meter['g']:.6f} | "
+            f"D: {avg_meter['d']:.6f} | "
+            f"Recon: {avg_meter['recon']:.6f} | "
+            f"LPIPS: {avg_meter['lpips']:.6f} | "
+            f"KL: {avg_meter['kl']:.6f}"
+        )
+        train_losses = {
+            "g": avg_meter["g"],
+            "d": avg_meter["d"],
+            "recon": avg_meter["recon"],
+            "lpips": avg_meter["lpips"],
+            "kl": avg_meter["kl"],
+        }
+        print("=" * 90 + "\n")
+        for k in meter:
+            meter[k] = 0.0
+        return train_losses
+
+    def log_val_loss(self, avg_loss, avg_recon_loss, avg_kl):
+        print("\n" + "=" * 90)
+        print(f"🔵 EPOCH {self.epoch} VALIDATION SUMMARY")
+        print("-" * 90)
+        print(
+            f"VAL | "
+            f"Total: {avg_loss:.6f} | "
+            f"Recon: {avg_recon_loss:.6f} | "
+            f"KL: {avg_kl:.6f}"
+        )
+        print("=" * 90 + "\n")
+
+    def save_losses_to_json(self, train_losses, val_losses=None):
+        def sanitize(d):
+            clean = {}
+            for k, v in d.items():
+                if torch.is_tensor(v):
+                    clean[k] = v.item()  # ✅ convert tensor → float
+                else:
+                    clean[k] = float(v)  # ✅ ensure pure Python scalar
+            return clean
+
+        train_losses = sanitize(train_losses)
+        if val_losses is not None:
+            val_losses = sanitize(val_losses)
+
+        with open(self.loss_log_path, "r") as f:
+            data = json.load(f)
+
+        data[str(self.epoch)] = {
+            "train": train_losses,
+            "val": val_losses
+        }
+
+        with open(self.loss_log_path, "w") as f:
+            json.dump(data, f, indent=4)
+
+
+
+        
+
+

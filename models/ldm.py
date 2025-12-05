@@ -22,7 +22,7 @@ class LatentDiffusion(nn.Module):
         self.scheduler = scheduler
 
     def encode(self, x):
-        z = self.vae.encode(x)
+        z = self.vae.encode_to_z(x)
         return z
     
     def decode(self, z):
