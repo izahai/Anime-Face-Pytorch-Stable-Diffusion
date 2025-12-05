@@ -14,7 +14,7 @@ load_dotenv()
 
 class LatentDiffusionTrainer(Trainer):
     def __init__(self, args, train_loader, val_loader, model=None):
-        super().__init__(self, args, train_loader, val_loader)
+        super().__init__(args, train_loader, val_loader)
 
         # ─── Model & Optimizer ───────────────────────────────────
         self.model = model.to(self.device)
