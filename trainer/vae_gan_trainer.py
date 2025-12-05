@@ -57,10 +57,12 @@ class VAEGANTrainer(Trainer):
         # -------------------------
         # LPIPS
         # -------------------------
-        self.lpips_model = lpips_model
-        if self.lpips_model==None:
+        if lpips_model is None:
             self.lpips_model = lpips.LPIPS(net="vgg")
-        self.lpips_model = lpips_model.to(self.device)
+        else:
+            self.lpips_model = lpips_model
+
+        self.lpips_model = self.lpips_model.to(self.device)
         self.lpips_model.eval()
 
     # ----------------------------------------------------------------
