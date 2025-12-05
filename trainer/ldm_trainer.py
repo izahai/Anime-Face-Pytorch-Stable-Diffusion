@@ -159,6 +159,9 @@ class LatentDiffusionTrainer(Trainer):
                 self.global_step += 1
 
                 pbar.set_postfix({"loss": f"{loss:.4f}"})
+                
+                if self.args.test_pipeline:
+                    break
 
             # ─── Logging & Sample Generation ──────────────────────────────
             if (ep + 1) % self.args.log_every == 0:
