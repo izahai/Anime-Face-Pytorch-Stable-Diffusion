@@ -26,7 +26,7 @@ class VAEGANTrainer(Trainer):
         # -------------------------
         # Setup Generator (VAE)
         # -------------------------
-        self.model = model or AutoEncoder(
+        self.vae = model or AutoEncoder(
             in_ch=3,
             base_ch=args.base_ch,
             z_ch=args.z_ch,
@@ -35,7 +35,7 @@ class VAEGANTrainer(Trainer):
         ).to(self.device)
 
         self.optimizer_g = torch.optim.Adam(
-            self.model.parameters(),
+            self.vae.parameters(),
             lr=args.learning_rate,
             betas=(args.adam_beta1, args.adam_beta2),
         )
@@ -65,7 +65,7 @@ class VAEGANTrainer(Trainer):
         self.lpips_model = self.lpips_model.to(self.device)
         self.lpips_model.eval()
 
-        g_total, g_trainable = self.count_params(self.model)
+        g_total, g_trainable = self.count_params(self.vae)
         d_total, d_trainable = self.count_params(self.discriminator)
 
         print("=" * 60)
@@ -85,7 +85,7 @@ class VAEGANTrainer(Trainer):
     # Save reconstructions (same as VAETrainer)
     # ----------------------------------------------------------------
     def save_reconstruction(self, x=None, num_samples=8, nrow=None):
-        self.model.eval()
+        self.vae.eval()
 
         if x is None:
             for batch in self.train_loader:
@@ -94,7 +94,7 @@ class VAEGANTrainer(Trainer):
 
         x = x[:num_samples]
         with torch.no_grad():
-            recon, _, _ = self.model(x)
+            recon, _, _ = self.vae(x)
 
         x_vis = (x + 1) * 0.5
         recon_vis = (recon + 1) * 0.5
@@ -106,7 +106,7 @@ class VAEGANTrainer(Trainer):
         save_image(grid, save_path)
         print(f"[SAMPLE] Saved reconstruction: {save_path}")
 
-        self.model.train()
+        self.vae.train()
 
     # ----------------------------------------------------------------
     # Training Loop
@@ -128,7 +128,7 @@ class VAEGANTrainer(Trainer):
                 # 1. Train Generator (VAE)
                 # ============================================================
                 with amp.autocast(device_type=self.device.type):
-                    recon, mu, logvar = self.model(x)
+                    recon, mu, logvar = self.vae(x)
 
                     disc_fake = self.discriminator(recon)
 
@@ -212,14 +212,14 @@ class VAEGANTrainer(Trainer):
     # ----------------------------------------------------------------
     @torch.no_grad()
     def validate(self):
-        self.model.eval()
+        self.vae.eval()
 
         total_loss = 0
         count = 0
 
         for x in self.val_loader:
             x = x.to(self.device)
-            recon, mu, logvar = self.model(x)
+            recon, mu, logvar = self.vae(x)
 
             # no GAN during validation
             recon_loss = F.mse_loss(recon, x)
@@ -233,12 +233,12 @@ class VAEGANTrainer(Trainer):
         avg_loss = total_loss / count
         print(f"[VAL] Epoch {self.epoch} | val_loss={avg_loss:.4f}")
 
-        self.model.train()
+        self.vae.train()
         return avg_loss
     
     def _build_state_dict(self):
         return {
-            "vae": self.model.state_dict(),
+            "vae": self.vae.state_dict(),
             "discriminator": self.discriminator.state_dict(),
             "g_optimizer": self.g_optimizer.state_dict(),
             "d_optimizer": self.d_optimizer.state_dict(),
