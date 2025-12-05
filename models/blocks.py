@@ -160,6 +160,6 @@ class MultiHeadAttentionBlock(nn.Module):
         attn = torch.softmax(attn, dim=-1)
 
         out = attn @ v
-        out = out.transpose(2, 3).contiuous().view(b,c,h,w)
+        out = out.transpose(2, 3).contiguous().view(b,c,h,w)
 
         return x + self.to_out(out)
