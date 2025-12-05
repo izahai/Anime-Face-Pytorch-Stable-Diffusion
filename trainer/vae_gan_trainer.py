@@ -173,8 +173,9 @@ class VAEGANTrainer(Trainer):
                 pbar.set_postfix({
                     "G_loss": f"{g_loss.item():.4f}",
                     "D_loss": f"{d_loss.item():.4f}",
-                    "charb": f"{logs['recon_charbonnier']:.4f}",
+                    "recon": f"{logs['recon_charbonnier']:.4f}",
                     "lpips": f"{logs['lpips']:.4f}",
+                    "kl": f"{logs['kl']:.4f}"
                 })
 
             # ---------------------------
