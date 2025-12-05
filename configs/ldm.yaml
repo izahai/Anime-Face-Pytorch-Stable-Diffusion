@@ -24,4 +24,4 @@ save_every: 5
 val_every: 1
 
 push_to_hf: True
-test_pipeline: True
+test_pipeline: False

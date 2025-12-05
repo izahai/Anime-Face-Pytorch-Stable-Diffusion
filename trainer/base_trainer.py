@@ -44,7 +44,7 @@ class Trainer(ABC):
             self.hf_token = os.getenv("HF_TOKEN")
 
         # Training state
-        self.epoch = 0
+        self.epoch = 1
         self.global_step = 0
         self.best_val_loss = float("inf")
 
